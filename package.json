@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --env-file=.env.local scripts/integration.mjs",
     "test:classroom": "node --env-file=.env.local scripts/classroom-integration.mjs",
-    "worker": "node --env-file=.env.local scripts/cursor-worker.mjs"
+    "worker": "node --env-file=.env.local scripts/cursor-worker.mjs",
+    "test:demo": "vitest run scripts/demo-store.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

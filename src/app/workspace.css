@@ -391,11 +391,15 @@ body {
   overflow-wrap: anywhere;
 }
 @media (min-width: 801px) and (max-width: 1100px) {
-  body { padding: 16px; }
+  body {
+    padding: 16px;
+  }
   #science-sos .ss-shell {
     grid-template-columns: 184px minmax(0, 1fr);
   }
-  #science-sos .ss-main { padding: 24px 20px; }
+  #science-sos .ss-main {
+    padding: 24px 20px;
+  }
   #science-sos .ss-reviewgrid,
   #science-sos .ss-stats-grid,
   #science-sos .ss-material-grid {
@@ -410,6 +414,189 @@ body {
 }
 /* Preserve the existing compact layout below the desktop range. */
 @media (max-width: 800px) {
-  #science-sos .ss-shell { grid-template-columns: minmax(0, 1fr); }
-  #science-sos .ss-reviewgrid { grid-template-columns: minmax(0, 1fr); }
+  #science-sos .ss-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #science-sos .ss-reviewgrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Presentation workspace and readable class evidence. */
+#science-sos .ss-demo-bar {
+  padding: 15px 24px;
+  background: #183650;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+#science-sos .ss-demo-bar strong {
+  font-size: 14px;
+}
+#science-sos .ss-demo-bar p {
+  color: #c1d6e8;
+  font-size: 11px;
+  margin-top: 3px;
+}
+#science-sos .ss-demo-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#science-sos .ss-demo-controls button {
+  border: 1px solid #67819b;
+  background: transparent;
+  color: #fff;
+  padding: 9px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+#science-sos .ss-demo-controls button[aria-pressed="true"] {
+  background: #def2ea;
+  border-color: #def2ea;
+  color: #17493d;
+  font-weight: 700;
+}
+#science-sos .ss-demo-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+#science-sos .ss-demo-controls select {
+  width: 118px;
+  font-size: 12px;
+  padding: 8px;
+}
+#science-sos .ss-loading {
+  padding: 80px 20px;
+  text-align: center;
+  color: var(--ss-muted);
+}
+#science-sos .ss-reason-overview {
+  margin: 22px 0 18px;
+}
+#science-sos .ss-reason-overview .ss-panelhead {
+  gap: 12px;
+  margin-bottom: 14px;
+}
+#science-sos .ss-group-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 10px;
+}
+#science-sos .ss-group-cards button {
+  min-width: 0;
+  text-align: left;
+  padding: 16px;
+  border: 1px solid var(--ss-line);
+  border-radius: 9px;
+  background: white;
+  color: var(--ss-ink);
+}
+#science-sos .ss-group-cards button[aria-pressed="true"] {
+  border-color: var(--ss-teal);
+  background: var(--ss-tint);
+  box-shadow: inset 0 0 0 1px var(--ss-teal);
+}
+#science-sos .ss-group-cards span {
+  font-size: 12px;
+  font-weight: 600;
+}
+#science-sos .ss-group-cards strong {
+  display: block;
+  font-size: 25px;
+  margin: 8px 0;
+}
+#science-sos .ss-group-cards small {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ss-muted);
+}
+#science-sos .ss-group-cards p {
+  color: var(--ss-muted);
+  font-size: 11px;
+  line-height: 1.65;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+#science-sos .ss-search-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ss-muted);
+  margin: 18px 0;
+}
+#science-sos .ss-search-label input {
+  max-width: 330px;
+  margin: 0;
+}
+#science-sos .ss-reviewgrid > .ss-list {
+  max-height: 780px;
+  overflow-y: auto;
+  padding: 3px;
+  align-content: start;
+  scrollbar-gutter: stable;
+}
+#science-sos .ss-resume-card {
+  background: var(--ss-mint-bg);
+  border: 1px solid #ccdfd7;
+  border-radius: 10px;
+  padding: 22px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+}
+#science-sos .ss-resume-card h3 {
+  margin: 9px 0 7px;
+}
+#science-sos .ss-resume-card p {
+  color: var(--ss-muted);
+  font-size: 12px;
+  max-width: 550px;
+}
+#science-sos .ss-resume-card button {
+  flex-shrink: 0;
+}
+#science-sos .ss-chat-starters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+#science-sos .ss-chat-starters button {
+  background: var(--ss-tint);
+  color: var(--ss-teal);
+  border: 1px solid var(--ss-line);
+  border-radius: 16px;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+#science-sos .ss-question-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+#science-sos .ss-question-starters .ss-button {
+  font-size: 12px;
+  text-align: left;
+}
+
+#science-sos fieldset.ss-demo-controls {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  min-width: 0;
 }

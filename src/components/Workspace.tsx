@@ -52,7 +52,27 @@ async function request(
   if (!res.ok) throw Error(result.error);
   return result;
 }
-export default function Workspace({ configured }: { configured: boolean }) {
+type DemoEngine = typeof import("@/lib/demo-store");
+export default function Workspace({
+  configured,
+  demo = false,
+}: {
+  configured: boolean;
+  demo?: boolean;
+}) {
+  const [demoEngine, setDemoEngine] = useState<DemoEngine | null>(null);
+  const [demoRole, setDemoRole] = useState<"teacher" | "student">("teacher");
+  const [demoStudentId, setDemoStudentId] = useState("demo-student-01");
+  const [demoEpoch, setDemoEpoch] = useState(0);
+  const [group, setGroup] = useState("all");
+  const [search, setSearch] = useState("");
+  useEffect(() => {
+    if (demo)
+      import("@/lib/demo-store").then(setDemoEngine).catch(() => {
+        setError("시연 자료를 불러오지 못했어요. 새로고침해 주세요.");
+        setLoading(false);
+      });
+  }, [demo]);
   const [member, setMember] = useState<Member | null>(null),
     [records, setRecords] = useState<RecordRow[]>([]),
     [space, setSpace] = useState<Space>(emptySpace),
@@ -65,6 +85,19 @@ export default function Workspace({ configured }: { configured: boolean }) {
     [error, setError] = useState(""),
     [toast, setToast] = useState("");
   const refresh = useCallback(async () => {
+    if (demo) {
+      if (!demoEngine) return;
+      try {
+        const snapshot = demoEngine.getDemoSnapshot(demoRole, demoStudentId);
+        setMember(snapshot.member);
+        setRecords(snapshot.records);
+        setSpace(snapshot.space);
+      } catch (e) {
+        setError((e as Error).message);
+      }
+      setLoading(false);
+      return;
+    }
     if (!configured) {
       setLoading(false);
       return;
@@ -86,26 +119,33 @@ export default function Workspace({ configured }: { configured: boolean }) {
     } finally {
       setLoading(false);
     }
-  }, [configured]);
+  }, [configured, demo, demoEngine, demoRole, demoStudentId]);
   useEffect(() => {
     refresh();
+    if (demo) return;
     const timer = setInterval(() => {
       if (!document.hidden) refresh();
     }, 5000);
     return () => clearInterval(timer);
-  }, [refresh]);
+  }, [refresh, demo]);
   async function labAct(action: string, data: unknown, r?: RecordRow) {
     setBusy(true);
     setError("");
     setToast("");
     try {
-      const result = await request(
-        "/api/lab",
-        action,
-        data,
-        r?.id ?? null,
-        r?.version ?? null,
-      );
+      if (demo && !demoEngine)
+        throw Error("시연 자료를 준비하고 있어요. 잠시 후 다시 눌러 주세요.");
+      if (demo) demoEngine!.getDemoSnapshot(demoRole, demoStudentId);
+      const result =
+        demo && demoEngine
+          ? await demoEngine.demoLabAction(action, data, r?.id)
+          : await request(
+              "/api/lab",
+              action,
+              data,
+              r?.id ?? null,
+              r?.version ?? null,
+            );
       await refresh();
       if (result.id) setSelected(result.id);
       if (action === "submit" || action === "reason") setPage("next");
@@ -129,11 +169,18 @@ export default function Workspace({ configured }: { configured: boolean }) {
     setError("");
     setToast("");
     try {
-      await request("/api/space", action, data, id ?? null);
+      if (demo) {
+        if (!demoEngine)
+          throw Error("시연 자료를 준비하고 있어요. 잠시 후 다시 눌러 주세요.");
+        demoEngine.getDemoSnapshot(demoRole, demoStudentId);
+        await demoEngine.demoSpaceAction(action, data, id);
+      } else await request("/api/space", action, data, id ?? null);
       await refresh();
       setToast(
         action === "chat_send"
-          ? "질문을 보냈어요. 답변이 도착하면 여기에 표시돼요."
+          ? demo
+            ? "준비된 예시 답변을 표시했어요."
+            : "질문을 보냈어요. 답변이 도착하면 여기에 표시돼요."
           : "저장했어요.",
       );
       return true;
@@ -149,10 +196,13 @@ export default function Workspace({ configured }: { configured: boolean }) {
   const rows = records.filter((r) => r.item_id === lessonId);
   const reviewRows = rows.filter(
     (r) =>
-      filter === "all" ||
-      (filter === "pending" && r.state === "awaiting_review") ||
-      (filter === "hold" && r.state === "needs_more_reason") ||
-      (filter === "confirmed" && !!r.experiment_id),
+      (group === "all" || r.hypothesis === group) &&
+      (!search.trim() ||
+        (r.student_alias + " " + r.reason).includes(search.trim())) &&
+      (filter === "all" ||
+        (filter === "pending" && r.state === "awaiting_review") ||
+        (filter === "hold" && r.state === "needs_more_reason") ||
+        (filter === "confirmed" && !!r.experiment_id)),
   );
   const row = reviewRows.find((r) => r.id === selected) || reviewRows[0];
   const studentRow = rows.find((r) => r.id === selected) || rows[0];
@@ -175,8 +225,85 @@ export default function Workspace({ configured }: { configured: boolean }) {
       ];
   return (
     <div id="science-sos">
+      {demo && (
+        <div className="ss-demo-bar">
+          <div>
+            <strong>발표용 예시 교실</strong>
+            <p>가상 학생·준비된 분석 예시 · 이 브라우저에만 저장됩니다.</p>
+          </div>
+          <fieldset className="ss-demo-controls" disabled={busy || !demoEngine}>
+            <button
+              aria-pressed={demoRole === "teacher"}
+              onClick={() => {
+                setDemoRole("teacher");
+                setPage("review");
+                setSelected("");
+                setFilter("all");
+                setGroup("all");
+                setSearch("");
+                setToast("");
+              }}
+            >
+              교사로 보기
+            </button>
+            <button
+              aria-pressed={demoRole === "student"}
+              onClick={() => {
+                setDemoRole("student");
+                setPage("next");
+                setSelected("");
+                setToast("");
+              }}
+            >
+              학생으로 보기
+            </button>
+            <label>
+              시연 학생
+              <select
+                aria-label="시연 학생"
+                value={demoStudentId}
+                onChange={(e) => {
+                  setDemoStudentId(e.target.value);
+                  setSelected(
+                    records.find(
+                      (r) =>
+                        r.student_id === e.target.value &&
+                        r.item_id === lessonId,
+                    )?.id ?? "",
+                  );
+                  setToast("");
+                }}
+              >
+                {(demoEngine?.demoStudents ?? []).map((s) => (
+                  <option value={s.id} key={s.id}>
+                    {s.alias}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              onClick={() => {
+                demoEngine?.resetDemo();
+                setDemoRole("teacher");
+                setDemoStudentId("demo-student-01");
+                setPage("review");
+                setLesson("D01");
+                setSelected("");
+                setFilter("all");
+                setGroup("all");
+                setSearch("");
+                setDemoEpoch((v) => v + 1);
+                refresh();
+                setToast("시연을 처음 상태로 되돌렸어요.");
+              }}
+            >
+              시연 처음부터
+            </button>
+          </fieldset>
+        </div>
+      )}
       <header className="ss-top">
-        <a className="ss-brand" href="/">
+        <a className="ss-brand" href={demo ? "/demo" : "/"}>
           <span className="ss-logo">
             <FlaskConical size={23} />
           </span>
@@ -197,14 +324,16 @@ export default function Workspace({ configured }: { configured: boolean }) {
           {member && (
             <>
               <span>{member.alias}</span>
-              <button
-                className="ss-icon-button"
-                aria-label="로그아웃"
-                disabled={busy}
-                onClick={() => labAct("logout", {})}
-              >
-                <LogOut size={16} />
-              </button>
+              {!demo && (
+                <button
+                  className="ss-icon-button"
+                  aria-label="로그아웃"
+                  disabled={busy}
+                  onClick={() => labAct("logout", {})}
+                >
+                  <LogOut size={16} />
+                </button>
+              )}
             </>
           )}
         </div>
@@ -228,7 +357,10 @@ export default function Workspace({ configured }: { configured: boolean }) {
             담겨 있어요.
           </div>
         </aside>
-        <main className="ss-main">
+        <main
+          className="ss-main"
+          key={demo ? `${demoEpoch}-${demoRole}-${demoStudentId}` : "live"}
+        >
           {error && (
             <div className="ss-alert" role="alert">
               {error}
@@ -240,7 +372,17 @@ export default function Workspace({ configured }: { configured: boolean }) {
               {toast}
             </div>
           )}
-          {!member ? (
+          {loading ? (
+            <div className="ss-loading" role="status">
+              {demo
+                ? "발표용 교실을 준비하고 있어요…"
+                : "수업을 불러오고 있어요…"}
+            </div>
+          ) : demo && !member ? (
+            <div className="ss-empty">
+              시연을 준비하지 못했어요. 페이지를 새로고침해 주세요.
+            </div>
+          ) : !member ? (
             <div className="ss-login-wrap">
               <Intro
                 tag="WELCOME TO SCIENCE SOS"
@@ -300,7 +442,8 @@ export default function Workspace({ configured }: { configured: boolean }) {
                 <div>
                   <span className="ss-eyebrow">진행 중인 수업</span>
                   <strong>
-                    우리 반 과학{teacher ? ` · ${space.members.length}명` : ""}
+                    {demo ? "2학년 3반" : "우리 반 과학"}
+                    {teacher ? ` · ${space.members.length}명` : ""}
                   </strong>
                 </div>
                 <label className="ss-label">
@@ -311,6 +454,8 @@ export default function Workspace({ configured }: { configured: boolean }) {
                       setLesson(e.target.value);
                       setSelected("");
                       setFilter("all");
+                      setGroup("all");
+                      setSearch("");
                       setToast("");
                     }}
                   >
@@ -390,6 +535,66 @@ export default function Workspace({ configured }: { configured: boolean }) {
                       응답 {new Set(rows.map((r) => r.student_id)).size}명
                     </span>
                   </div>
+                  <section
+                    className="ss-reason-overview"
+                    aria-label="이유별로 모아 보기"
+                  >
+                    <div className="ss-panelhead">
+                      <div>
+                        <h3>같은 답, 다른 이유</h3>
+                        <p className="ss-note">
+                          가설을 눌러 학생의 근거와 다음 활동을 함께 살펴보세요.
+                        </p>
+                      </div>
+                      <button
+                        className="ss-button"
+                        onClick={() => {
+                          setGroup("all");
+                          setFilter("all");
+                          setSearch("");
+                        }}
+                      >
+                        모두 보기
+                      </button>
+                    </div>
+                    <div className="ss-group-cards">
+                      {Object.entries(hypotheses)
+                        .filter(([id]) => rows.some((r) => r.hypothesis === id))
+                        .map(([id, label]) => {
+                          const matching = rows.filter(
+                            (r) => r.hypothesis === id,
+                          );
+                          return (
+                            <button
+                              key={id}
+                              aria-pressed={group === id}
+                              onClick={() => {
+                                setGroup(group === id ? "all" : id);
+                                setSelected("");
+                              }}
+                            >
+                              <span>{label}</span>
+                              <strong>
+                                {
+                                  new Set(matching.map((r) => r.student_id))
+                                    .size
+                                }
+                                <small>명</small>
+                              </strong>
+                              <p>{matching[0].reason}</p>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </section>
+                  <label className="ss-search-label">
+                    학생·이유 검색
+                    <input
+                      placeholder="이름 또는 이유의 단어로 찾기"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </label>
                   <div className="ss-filter">
                     {[
                       ["all", `전체 ${rows.length}`],
@@ -434,11 +639,13 @@ export default function Workspace({ configured }: { configured: boolean }) {
                             <div className="ss-person-foot">
                               <span>{hypotheses[r.hypothesis]}</span>
                               <span>
-                                {r.analysis_mode === "live"
-                                  ? "AI 제안"
-                                  : r.experiment_id
-                                    ? "교사 검토"
-                                    : "분석 대기"}
+                                {r.analysis_mode === "sample"
+                                  ? "분석 예시"
+                                  : r.analysis_mode === "live"
+                                    ? "AI 제안"
+                                    : r.experiment_id
+                                      ? "교사 검토"
+                                      : "분석 대기"}
                               </span>
                             </div>
                           </button>
@@ -474,6 +681,16 @@ export default function Workspace({ configured }: { configured: boolean }) {
                       <Student
                         key={studentRow.id + studentRow.version}
                         r={studentRow}
+                        localOnly={demo}
+                        experiment={
+                          demo &&
+                          demoEngine &&
+                          ["experiment_assigned", "observed"].includes(
+                            studentRow.state,
+                          )
+                            ? demoEngine.getDemoExperiment(studentRow.id)
+                            : undefined
+                        }
                         act={async (a, d, r) => {
                           await labAct(a, d, r);
                         }}
@@ -519,6 +736,23 @@ export default function Workspace({ configured }: { configured: boolean }) {
                       궁금해요 채팅 →
                     </button>
                   </div>
+                  {studentRow && (
+                    <section className="ss-resume-card">
+                      <div>
+                        <span className="ss-pill teal">
+                          {states[studentRow.state]}
+                        </span>
+                        <h3>이 질문에 남긴 생각이 있어요.</h3>
+                        <p>“{studentRow.reason}”</p>
+                      </div>
+                      <button
+                        className="ss-button primary"
+                        onClick={() => setPage("next")}
+                      >
+                        내 탐구 이어보기 →
+                      </button>
+                    </section>
+                  )}
                   <StudentForm
                     key={lessonId}
                     lesson={lesson}
@@ -753,13 +987,15 @@ function Review({
           )}
           <div className="ss-ai">
             <span className="ss-pill teal">
-              {r.analysis_mode === "live"
-                ? "AI 제안 · 실제 분석"
-                : r.experiment_id
-                  ? "교사가 검토한 가설"
-                  : r.analysis_mode === "error"
-                    ? "AI 분석 불가"
-                    : "AI 분석 대기"}
+              {r.analysis_mode === "sample"
+                ? "시연용 분석 예시"
+                : r.analysis_mode === "live"
+                  ? "AI 제안 · 실제 분석"
+                  : r.experiment_id
+                    ? "교사가 검토한 가설"
+                    : r.analysis_mode === "error"
+                      ? "AI 분석 불가"
+                      : "AI 분석 대기"}
             </span>
             <strong>{hypotheses[r.hypothesis]}</strong>
             <p>
@@ -814,9 +1050,16 @@ function Review({
                   확인할 설명 유형
                   <select
                     value={hypothesis}
-                    onChange={(e) =>
-                      setHypothesis(e.target.value as Hypothesis)
-                    }
+                    onChange={(e) => {
+                      const next = e.target.value as Hypothesis;
+                      setHypothesis(next);
+                      setActivity(
+                        ["D01", "D02", "D03"].includes(r.item_id)
+                          ? experiments.find((exp) => exp.kind === next)?.id ||
+                              "guided"
+                          : "guided",
+                      );
+                    }}
                     required
                   >
                     <option value="hold" disabled>

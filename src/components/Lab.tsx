@@ -2,20 +2,11 @@
 import { useEffect, useState } from "react";
 import {
   FlaskConical,
-  ArrowUpRight,
   ArrowRight,
   Check,
-  BookOpen,
-  Layers,
-  LogOut,
-  ChevronRight,
   Clock3,
-  Lightbulb,
   ShieldCheck,
-  RefreshCw,
-  Search,
   Atom,
-  Activity,
 } from "lucide-react";
 import {
   items,
@@ -26,8 +17,7 @@ import {
   RecordRow,
   Hypothesis,
 } from "@/lib/content";
-type Member = { alias: string; role: "student" | "teacher" };
-type Experiment = {
+export type Experiment = {
   left: string;
   right: string;
   leftFloats: boolean;
@@ -124,28 +114,47 @@ export function Student({
   r,
   act,
   busy,
+  experiment,
+  localOnly = false,
 }: {
   r: RecordRow;
   act: Act;
   busy: boolean;
+  experiment?: Experiment;
+  localOnly?: boolean;
 }) {
   const item = items.find((i) => i.id === r.item_id)!,
-    [exp, setExp] = useState<Experiment | null>(null),
+    [loadedExperiment, setLoadedExperiment] = useState<Experiment | null>(null),
     [played, setPlayed] = useState(false),
     [text, setText] = useState(""),
     [note, setNote] = useState(""),
     [stuck, setStuck] = useState("none"),
-    [expError, setExpError] = useState("");
+    [expError, setExpError] = useState(""),
+    [retry, setRetry] = useState(0);
+  const exp = experiment ?? loadedExperiment;
   useEffect(() => {
-    if (["experiment_assigned", "observed"].includes(r.state))
-      fetch("/api/lab?experiment=" + r.id)
-        .then(async (v) => {
-          const d = await v.json();
-          if (!v.ok) throw Error(d.error);
-          setExp(d);
-        })
-        .catch((e) => setExpError(e.message));
-  }, [r.id, r.state]);
+    if (
+      localOnly ||
+      experiment ||
+      !["experiment_assigned", "observed"].includes(r.state)
+    )
+      return;
+    const controller = new AbortController();
+    setExpError("");
+    fetch("/api/lab?experiment=" + encodeURIComponent(r.id), {
+      signal: controller.signal,
+    })
+      .then(async (v) => {
+        const d = await v.json();
+        if (!v.ok) throw Error(d.error || "활동을 불러오지 못했어요.");
+        setLoadedExperiment(d);
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted)
+          setExpError(e.message || "활동을 불러오지 못했어요.");
+      });
+    return () => controller.abort();
+  }, [r.id, r.state, experiment, localOnly, retry]);
   const step = ["awaiting_review", "needs_more_reason"].includes(r.state)
     ? 0
     : r.state === "experiment_assigned"
@@ -173,6 +182,12 @@ export function Student({
         <b>{r.prediction}</b>
         <p>“{r.reason}”</p>
       </div>
+      {r.teacher_question && r.state !== "needs_more_reason" && (
+        <div className="notice">
+          <b>선생님이 함께 생각해 보자는 질문</b>
+          <p>{r.teacher_question}</p>
+        </div>
+      )}
       {r.state === "awaiting_review" && (
         <div className="waiting">
           <Clock3 size={30} />
@@ -211,7 +226,24 @@ export function Student({
           </button>
         </form>
       )}
-      {expError && <div className="error">{expError}</div>}
+      {expError && (
+        <div className="error" role="alert">
+          <p>{expError}</p>
+          <button className="secondary" onClick={() => setRetry((v) => v + 1)}>
+            활동 다시 불러오기
+          </button>
+        </div>
+      )}
+      {r.state === "experiment_assigned" && !exp && !expError && (
+        <div className="waiting" role="status">
+          <Clock3 size={24} />
+          <p>
+            {localOnly
+              ? "이 예시의 활동을 준비하지 못했어요. 시연을 처음부터 다시 시작해 주세요."
+              : "선생님이 고른 활동을 불러오고 있어요."}
+          </p>
+        </div>
+      )}
       {r.state === "experiment_assigned" && exp?.id === "guided" && (
         <form
           onSubmit={(e) => {
@@ -238,7 +270,7 @@ export function Student({
             />
           </label>
           <button className="primary" disabled={busy || !text.trim()}>
-            관찰 기록 저장하기 →
+            {busy ? "관찰을 저장하고 있어요…" : "관찰 기록 저장하기 →"}
           </button>
         </form>
       )}
@@ -275,8 +307,12 @@ export function Student({
           </div>
           <p className="caption">{exp.detail} · 이상화한 가상 실험</p>
           {played && <div className="observation-result">{exp.result}</div>}
-          <button className="secondary" onClick={() => setPlayed(!played)}>
-            {played ? "처음으로" : "실험 시작"}
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() => setPlayed(!played)}
+          >
+            {played ? "실험 처음으로" : "실험 시작"}
             <FlaskConical size={17} />
           </button>
           {played && (
@@ -285,7 +321,7 @@ export function Student({
               disabled={busy}
               onClick={() => act("observe", {}, r)}
             >
-              관찰했어요
+              {busy ? "관찰 저장 중…" : "관찰했어요 · 설명 다시 쓰기"}
               <ArrowRight size={16} />
             </button>
           )}
@@ -330,15 +366,20 @@ export function Student({
               placeholder="예: 물체뿐 아니라 액체도 비교해야 해요"
             />
           </label>
+          <p className="muted small-text">
+            처음 이유에서 바뀐 말이 강조돼요. 관찰한 결과를 근거로 연결해
+            보세요.
+          </p>
           {text && <Comparison before={r.reason} after={text} />}
           <button className="primary" disabled={busy || !text.trim()}>
-            바뀐 생각 저장하기
+            {busy ? "바뀐 생각 저장 중…" : "바뀐 생각 저장하기"}
             <ArrowRight size={16} />
           </button>
         </form>
       )}
       {r.state === "revised" && (
         <>
+          <Comparison before={r.reason} after={r.revised_text || r.reason} />
           <h3>새로운 상황에서도 설명해 볼까요?</h3>
           <p>{items.find((i) => i.id === item.pair)?.description}</p>
           <Prediction
@@ -355,6 +396,7 @@ export function Student({
           <Comparison before={r.reason} after={r.revised_text!} />
           <div className="observation-result">
             <b>새 사례에서의 나의 설명</b>
+            <p>{r.re_prediction}</p>
             <p>{r.re_reason}</p>
           </div>
           <div className="waiting">
@@ -441,13 +483,16 @@ export function Teacher({
           <Atom size={18} />
           <b>{r.experiment_id ? "검토한 가설" : "AI의 가설"}</b>
           <span className="tiny-pill">
-            {r.analysis_mode === "live"
-              ? "실시간 분석"
-              : r.experiment_id
-                ? "교사 직접 검토"
-                : r.analysis_mode === "pending" && r.state === "awaiting_review"
-                  ? "분석 대기"
-                  : "분석 불가 · 직접 검토"}
+            {r.analysis_mode === "sample"
+              ? "시연용 분석 예시"
+              : r.analysis_mode === "live"
+                ? "실시간 분석"
+                : r.experiment_id
+                  ? "교사 직접 검토"
+                  : r.analysis_mode === "pending" &&
+                      r.state === "awaiting_review"
+                    ? "분석 대기"
+                    : "분석 불가 · 직접 검토"}
           </span>
         </div>
         <h3>{hypotheses[r.hypothesis]}</h3>
@@ -525,7 +570,7 @@ export function Teacher({
       )}
       {r.observation && (
         <div className="observation-result">
-          <small>가상 실험 관찰 기록</small>
+          <small>학생이 확인한 관찰 기록</small>
           <p>{r.observation}</p>
         </div>
       )}
@@ -591,10 +636,22 @@ export function Teacher({
         </>
       )}
       {r.state === "completed" && (
-        <div className="notice">
-          <Check size={18} />
-          교사 확인까지 완료된 탐구 기록입니다.
-        </div>
+        <>
+          <div className="notice">
+            <Check size={18} />
+            교사 확인까지 완료된 탐구 기록입니다.
+          </div>
+          {r.scores && (
+            <div className="score-row">
+              {["조건 비교", "관찰 증거", "개념 설명"].map((label, index) => (
+                <div key={label}>
+                  {label}
+                  <strong>{r.scores![index]} / 2</strong>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </>
   );

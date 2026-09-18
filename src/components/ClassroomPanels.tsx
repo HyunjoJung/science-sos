@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { hypotheses, RecordRow, lessons } from "@/lib/content";
 export type Action = (
   action: string,
@@ -67,6 +67,14 @@ export const emptySpace: Space = {
   members: [],
   answers: {},
 };
+function displayDate(value: string, includeTime = true) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "long",
+    day: "numeric",
+    ...(includeTime ? ({ hour: "2-digit", minute: "2-digit" } as const) : {}),
+  }).format(new Date(value));
+}
 export function Empty({ children }: { children: React.ReactNode }) {
   return <div className="ss-empty">{children}</div>;
 }
@@ -100,16 +108,24 @@ export function FeedbackForm({
   act: Action;
   busy: boolean;
 }) {
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(""),
+    [sent, setSent] = useState(false);
   return (
     <form
       className="ss-feedback"
       onSubmit={async (e) => {
         e.preventDefault();
+        setSent(false);
         if (
-          await act("feedback_send", { student_id: studentId, body }, recordId)
-        )
+          await act(
+            "feedback_send",
+            { student_id: studentId, body: body.trim() },
+            recordId,
+          )
+        ) {
           setBody("");
+          setSent(true);
+        }
       }}
     >
       <h3>학생에게 피드백 보내기</h3>
@@ -128,8 +144,13 @@ export function FeedbackForm({
         placeholder="네가 비교한 조건이 흥미로워. 만약…"
       />
       <button className="ss-button primary" disabled={busy || !body.trim()}>
-        학생에게 전달하기 →
+        {busy ? "피드백 전달 중…" : "학생에게 전달하기 →"}
       </button>
+      {sent && (
+        <p className="ss-note" role="status">
+          피드백을 전달했어요. 학생의 ‘선생님 피드백’에서 확인할 수 있어요.
+        </p>
+      )}
     </form>
   );
 }
@@ -165,7 +186,7 @@ export function FeedbackInbox({
             <p className="ss-feedback-text">{f.body}</p>
             <div className="ss-person-top">
               <span className="ss-note">
-                {new Date(f.created_at).toLocaleString("ko-KR")}
+                <time dateTime={f.created_at}>{displayDate(f.created_at)}</time>
               </span>
               {!f.read_at && (
                 <button
@@ -198,7 +219,9 @@ export function Materials({
     [title, setTitle] = useState(""),
     [section, setSection] = useState(""),
     [content, setContent] = useState(""),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [uploading, setUploading] = useState(false),
+    [added, setAdded] = useState(0);
   return (
     <>
       <Intro
@@ -214,6 +237,7 @@ export function Materials({
             onSubmit={async (e) => {
               e.preventDefault();
               setError("");
+              setAdded(0);
               const queue = files.length ? files : [{ name: title, content }];
               for (const f of queue) {
                 if (!f.name.trim() || !f.content.trim()) {
@@ -221,18 +245,28 @@ export function Materials({
                   return;
                 }
               }
-              for (const f of queue)
-                if (
-                  !(await act("material_add", {
-                    title: f.name,
-                    section,
-                    content: f.content,
-                  }))
-                )
-                  return;
-              setFiles([]);
-              setTitle("");
-              setContent("");
+              setUploading(true);
+              try {
+                for (let index = 0; index < queue.length; index++) {
+                  const f = queue[index];
+                  if (
+                    !(await act("material_add", {
+                      title: f.name.trim(),
+                      section,
+                      content: f.content,
+                    }))
+                  ) {
+                    if (files.length) setFiles(queue.slice(index));
+                    return;
+                  }
+                  setAdded((count) => count + 1);
+                }
+                setFiles([]);
+                setTitle("");
+                setContent("");
+              } finally {
+                setUploading(false);
+              }
             }}
           >
             <div className="ss-upload">
@@ -243,6 +277,7 @@ export function Materials({
                 id="material-files"
                 type="file"
                 multiple
+                disabled={busy || uploading}
                 accept=".txt,.md"
                 onChange={async (e) => {
                   setError("");
@@ -282,6 +317,7 @@ export function Materials({
                     <button
                       className="ss-button"
                       type="button"
+                      disabled={busy || uploading}
                       onClick={() => setFiles(files.filter((_, n) => n !== i))}
                     >
                       제외
@@ -340,9 +376,22 @@ export function Materials({
                 {error}
               </p>
             )}
-            <button className="ss-button primary ss-wide" disabled={busy}>
-              자료 등록하기
+            <button
+              className="ss-button primary ss-wide"
+              disabled={busy || uploading}
+            >
+              {uploading
+                ? "자료 등록 중…"
+                : files.length
+                  ? `자료 ${files.length}개 등록하기`
+                  : "자료 등록하기"}
             </button>
+            {!!added && (
+              <p className="ss-note" role="status">
+                자료 {added}개를 등록했어요. 오른쪽에서 본문과 사용 설정을
+                확인하세요.
+              </p>
+            )}
             <p className="ss-note">
               등록한 본문과 사용 설정은 우리 반 자료실에 저장됩니다. 학생
               채팅에는 사용 중인 자료만 제공돼요.
@@ -406,7 +455,7 @@ function MaterialCard({
         />
         <button
           className="ss-button"
-          disabled={busy || !body.trim()}
+          disabled={busy || !body.trim() || body === m.content}
           onClick={() => act("material_edit", { content: body }, m.id)}
         >
           본문 저장
@@ -429,10 +478,22 @@ export function Chats({
   const [room, setRoom] = useState("course"),
     [student, setStudent] = useState(""),
     [question, setQuestion] = useState("");
-  const who = student || space.members[0]?.id;
-  const rows = space.chats.filter(
-    (c) => c.room === room && (!teacher || c.student_id === who),
-  );
+  const who = space.members.some((m) => m.id === student)
+    ? student
+    : space.members[0]?.id;
+  const rows = space.chats
+    .filter((c) => c.room === room && (!teacher || c.student_id === who))
+    .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+  const starters =
+    room === "course"
+      ? [
+          "무거운 나무는 왜 물에 뜰 수 있나요?",
+          "밀도를 비교할 때 어떤 조건을 봐야 하나요?",
+        ]
+      : [
+          "실생활에서 밀도를 활용하는 예를 알려 주세요.",
+          "더 알아볼 수 있는 교육 자료가 궁금해요.",
+        ];
   return (
     <>
       <Intro
@@ -447,18 +508,24 @@ export function Chats({
         }
       />
       {teacher && (
-        <div className="ss-work-tabs">
-          {space.members.map((m) => (
-            <button
-              key={m.id}
-              aria-pressed={who === m.id}
-              onClick={() => setStudent(m.id)}
-            >
-              {m.alias} ·{" "}
-              {space.chats.filter((c) => c.student_id === m.id).length}개 질문
-            </button>
-          ))}
-        </div>
+        <label className="ss-field ss-label">
+          질문을 살펴볼 학생
+          <select
+            value={who || ""}
+            onChange={(e) => setStudent(e.target.value)}
+            disabled={!space.members.length}
+          >
+            {!space.members.length && (
+              <option value="">배정된 학생이 없어요</option>
+            )}
+            {space.members.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.alias} ·{" "}
+                {space.chats.filter((c) => c.student_id === m.id).length}개 질문
+              </option>
+            ))}
+          </select>
+        </label>
       )}
       <div className="ss-chat-layout">
         <div className="ss-rooms">
@@ -504,15 +571,19 @@ export function Chats({
                   <div className="ss-message assistant">
                     <div className="ss-message-label">
                       과학SOS ·{" "}
-                      {c.status === "ready"
-                        ? "AI 답변"
-                        : c.status === "error"
-                          ? "답변 확인 필요"
-                          : "답변 준비 중"}
+                      {c.status === "sample"
+                        ? "준비된 예시 답변"
+                        : c.status === "ready"
+                          ? "AI 답변"
+                          : c.status === "error"
+                            ? "답변 확인 필요"
+                            : "답변 준비 중"}
                     </div>
                     <p>
                       {c.answer ||
-                        "등록 자료를 확인하며 답변을 준비하고 있어요."}
+                        (c.status === "error"
+                          ? "답변을 완성하지 못했어요. 질문을 조금 더 구체적으로 남기거나 선생님께 함께 확인해 주세요."
+                          : "등록 자료를 확인하며 답변을 준비하고 있어요. 완료되면 자동으로 표시돼요.")}
                     </p>
                     {c.sources.map((s, i) =>
                       s.url ? (
@@ -533,6 +604,9 @@ export function Chats({
                         </details>
                       ),
                     )}
+                    <time className="ss-note" dateTime={c.created_at}>
+                      {displayDate(c.created_at)}
+                    </time>
                   </div>
                 </div>
               ))
@@ -551,6 +625,19 @@ export function Chats({
                   ? "수업에서 궁금한 질문"
                   : "더 알아보고 싶은 질문"}
               </label>
+              <div className="ss-question-starters">
+                {starters.map((starter) => (
+                  <button
+                    className="ss-button"
+                    key={starter}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setQuestion(starter)}
+                  >
+                    {starter}
+                  </button>
+                ))}
+              </div>
               <textarea
                 id="chat-question"
                 required
@@ -560,19 +647,23 @@ export function Chats({
                 placeholder="궁금한 점을 적어 주세요."
               />
               <div className="ss-chat-compose-row">
-                <span>답변의 근거를 함께 확인해 주세요.</span>
+                <span>
+                  {question.length} / 500 · 답변의 근거를 함께 확인해 주세요.
+                </span>
                 <button
                   className="ss-button primary"
                   disabled={busy || !question.trim()}
                 >
-                  보내기 ↑
+                  {busy ? "질문 보내는 중…" : "보내기 ↑"}
                 </button>
               </div>
             </form>
           )}
         </section>
       </div>
-      {teacher && who && <FeedbackForm studentId={who} act={act} busy={busy} />}
+      {teacher && who && (
+        <FeedbackForm key={who} studentId={who} act={act} busy={busy} />
+      )}
     </>
   );
 }
@@ -597,11 +688,12 @@ export function Discussion({
     [body, setBody] = useState(""),
     [reply, setReply] = useState<string | null>(null),
     [filter, setFilter] = useState("all");
+  const composer = useRef<HTMLTextAreaElement>(null);
   const topic = space.topics.find((t) => t.id === selected),
     topics = space.topics.filter(
       (t) =>
         (unitFilter === "all" || t.unit === unitFilter) &&
-        t.title.includes(query),
+        t.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
     );
   const posts = space.posts.filter((p) => p.topic_id === selected);
   const topPosts = posts.filter(
@@ -646,7 +738,13 @@ export function Discussion({
             </button>
           ))}
         </div>
-        {!topPosts.length && <Empty>첫 번째 생각을 남겨 주세요.</Empty>}
+        {!topPosts.length && (
+          <Empty>
+            {filter === "all"
+              ? "첫 번째 생각을 남겨 주세요."
+              : "이 조건에 맞는 대화가 없어요. ‘전체 대화’에서 다른 생각을 살펴보세요."}
+          </Empty>
+        )}
         {topPosts.map((p) => (
           <article className="ss-board-answer" key={p.id}>
             <div className="ss-person-top">
@@ -656,6 +754,9 @@ export function Discussion({
               </span>
             </div>
             <p className="ss-board-answer-text">{p.body}</p>
+            <time className="ss-note" dateTime={p.created_at}>
+              {displayDate(p.created_at)}
+            </time>
             <div className="ss-thread-actions">
               <button
                 aria-pressed={p.liked}
@@ -664,7 +765,14 @@ export function Discussion({
               >
                 생각이 넓어졌어요 {p.likes || ""}
               </button>
-              <button onClick={() => setReply(p.id)}>답글 쓰기</button>
+              <button
+                onClick={() => {
+                  setReply(p.id);
+                  composer.current?.focus();
+                }}
+              >
+                답글 쓰기
+              </button>
             </div>
             {posts.some((r) => r.parent_id === p.id) && (
               <details className="ss-board-replies">
@@ -677,6 +785,9 @@ export function Discussion({
                     <div className="ss-thread-reply" key={r.id}>
                       <strong>{r.author}</strong>
                       <p>{r.body}</p>
+                      <time className="ss-note" dateTime={r.created_at}>
+                        {displayDate(r.created_at)}
+                      </time>
                     </div>
                   ))}
               </details>
@@ -711,6 +822,7 @@ export function Discussion({
             </div>
           )}
           <textarea
+            ref={composer}
             id="post-body"
             required
             maxLength={1500}
@@ -773,7 +885,7 @@ export function Discussion({
           className="ss-button primary"
           onClick={() => setCreating(!creating)}
         >
-          새 주제 열기 +
+          {creating ? "새 주제 작성 닫기" : "새 주제 열기 +"}
         </button>
       </div>
       {creating && (
@@ -816,7 +928,11 @@ export function Discussion({
       )}
       <section className="ss-panel">
         {topics.length === 0 ? (
-          <Empty>등록된 주제가 없어요. 함께 생각할 질문을 열어 주세요.</Empty>
+          <Empty>
+            {query.trim() || unitFilter !== "all"
+              ? "검색 조건에 맞는 주제가 없어요. 검색어나 단원을 바꿔 보세요."
+              : "등록된 주제가 없어요. 함께 생각할 질문을 열어 주세요."}
+          </Empty>
         ) : (
           topics.slice((page - 1) * 8, page * 8).map((t) => (
             <button
@@ -825,13 +941,15 @@ export function Discussion({
               onClick={() => {
                 setSelected(t.id);
                 setFilter("all");
+                setBody("");
+                setReply(null);
               }}
             >
               <span className="ss-pill teal">{t.unit}</span>
               <strong>{t.title}</strong>
               <small>
                 대화 {space.posts.filter((p) => p.topic_id === t.id).length}개 ·{" "}
-                {new Date(t.created_at).toLocaleDateString("ko-KR")}
+                {displayDate(t.created_at, false)}
               </small>
             </button>
           ))
@@ -866,7 +984,11 @@ export function Analytics({
 }) {
   const [filter, setFilter] = useState("all");
   const latest = Array.from(
-    new Map([...records].reverse().map((r) => [r.student_id, r])).values(),
+    new Map(
+      [...records]
+        .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+        .map((r) => [r.student_id, r]),
+    ).values(),
   );
   const result = (r: RecordRow) =>
     r.prediction === "아직 모르겠다"
@@ -987,7 +1109,10 @@ export function Analytics({
         </section>
       </div>
       <section className="ss-panel ss-spaced">
-        <h2>답변을 한눈에</h2>
+        <div className="ss-panelhead">
+          <h2>답변을 한눈에</h2>
+          <span className="ss-pill">{filtered.length}명 표시</span>
+        </div>
         <div className="ss-filter">
           {[
             ["all", "전체"],
@@ -1004,17 +1129,32 @@ export function Analytics({
             </button>
           ))}
         </div>
+        {!["all", "incorrect", "correct", "unknown"].includes(filter) && (
+          <div className="ss-person-top">
+            <p className="ss-note">선택한 답 · {filter}</p>
+            <button className="ss-button" onClick={() => setFilter("all")}>
+              전체 답변 보기
+            </button>
+          </div>
+        )}
         <div className="ss-stats-table">
-          <table>
+          <table aria-label="학생별 예측과 이유">
             <thead>
               <tr>
-                <th>학생</th>
-                <th>선택한 답</th>
-                <th>학생이 남긴 이유</th>
-                <th>구분</th>
+                <th scope="col">학생</th>
+                <th scope="col">선택한 답</th>
+                <th scope="col">학생이 남긴 이유</th>
+                <th scope="col">구분</th>
               </tr>
             </thead>
             <tbody>
+              {!filtered.length && (
+                <tr>
+                  <td colSpan={4}>
+                    <Empty>이 조건에 해당하는 학생 응답이 없어요.</Empty>
+                  </td>
+                </tr>
+              )}
               {filtered.map((r) => (
                 <tr key={r.id}>
                   <td>{r.student_alias}</td>
