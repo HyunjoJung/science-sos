@@ -24,11 +24,12 @@ AI IMPACT: AI for Good 서울 정책 토론 및 해커톤(2026-09-18) 프로젝�
 ## 현재 상태
 
 저장소와 기획 문서를 준비한 단계입니다. 앱 코드 및 실행 환경은 아직 없습니다.
-기술 스택은 미정이며, 데모에는 가상 데이터를 사용합니다.
+기술 스택은 Next.js + Supabase + Vercel이며, 데모에는 가상 데이터를 사용합니다. 계정 연결·인프라 생성은 아직 진행하지 않았습니다.
 
 ## 문서
 
 - [PRD · 제품 요구사항 및 구현 완료 기준](docs/PRD.md) — 상세 구현의 기준 문서
+- [TRD · Supabase + Vercel 기술 설계](docs/TRD.md) — 인증·DB·API·배포·크레딧 사용 기준
 - [MVP 명세](docs/mvp.md)
 - [정책·공공지원 제안 초안](docs/policy-proposal.md)
 - [구현 작업 목록](docs/backlog.md)
