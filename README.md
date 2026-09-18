@@ -23,8 +23,19 @@ AI IMPACT: AI for Good 서울 정책 토론 및 해커톤(2026-09-18) 프로젝�
 
 ## 현재 상태
 
-저장소와 기획 문서를 준비한 단계입니다. 앱 코드 및 실행 환경은 아직 없습니다.
-기술 스택은 Next.js + Supabase + Vercel이며, 데모에는 가상 데이터를 사용합니다. 계정 연결·인프라 생성은 아직 진행하지 않았습니다.
+Next.js 앱과 실제 Supabase 인증·DB를 구현했습니다. 학생 답안을 공식 Cursor CLI로 분석하는 로컬 워커를 연결했고, 실제 AI 응답 저장과 교사 승인부터 재평가까지 통합 검증했습니다. 고정 AI 응답이나 가짜 통계는 없습니다. 교육청 집계 화면은 후속 범위입니다.
+
+실행·계정·배포 구성은 [운영 안내](docs/OPERATIONS.md)를 참고하세요. 현재 AI 워커는 로그인된 Windows PC가 켜져 있어야 동작합니다.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm dev
+# 별도 터미널: 공식 Cursor CLI 로그인 및 .env.local 설정 후
+node --env-file=.env.local scripts/cursor-worker.mjs
+```
+
+검증: `pnpm typecheck`, `pnpm build`, `node --env-file=.env.local scripts/integration.mjs`.
+통합 검증은 배정된 테스트 계정으로 실제 DB 기록 및 Cursor 요청을 만듭니다.
 
 ## 문서
 

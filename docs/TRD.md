@@ -2,6 +2,8 @@
 
 Technical Requirements Document v1.0 · 2026-09-18
 
+> 구현 업데이트: 실제 Supabase와 Cursor CLI 워커가 연결되었습니다. 아래는 초기 설계이며, 계정 변경·실제 구조·검증·남은 범위는 [OPERATIONS.md](OPERATIONS.md)를 우선 확인하세요. 사용자의 후속 지시에 따라 고정 AI 응답 fallback은 구현하지 않습니다.
+
 기준: [PRD v1.0](PRD.md). 상태: 구현 설계 완료, 애플리케이션·인프라 미구축. 이 문서는 클라우드 계정 연결이나 배포 완료를 의미하지 않는다.
 
 ## 1. 확정 사항과 연결 대상

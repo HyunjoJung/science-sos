@@ -11,3 +11,7 @@ __pycache__/
 *.log
 .DS_Store
 Thumbs.db
+.vercel/
+.worker-inference/
+*.tsbuildinfo
+.secrets/
