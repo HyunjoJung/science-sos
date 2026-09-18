@@ -341,3 +341,75 @@ body {
   gap: 5px;
   padding: 11px 8px;
 }
+
+/* Desktop workspace: keep the reading column usable in split browser windows. */
+#science-sos {
+  max-width: 1440px;
+}
+#science-sos .ss-shell {
+  grid-template-columns: 184px minmax(0, 1fr);
+}
+#science-sos .ss-navitem {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#science-sos .ss-label {
+  display: block;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 500;
+}
+#science-sos .ss-class-switch .ss-label {
+  margin-bottom: 0;
+}
+#science-sos .ss-class-switch > *,
+#science-sos .ss-panel,
+#science-sos .ss-reviewgrid > *,
+#science-sos .ss-chat-layout > *,
+#science-sos .ss-stats-grid > * {
+  min-width: 0;
+}
+#science-sos .ss-reviewgrid {
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.6fr);
+}
+#science-sos nav.ss-work-tabs {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+#science-sos .ss-work-tabs button {
+  flex: 0 0 auto;
+}
+#science-sos .ss-person-top,
+#science-sos .ss-panelhead,
+#science-sos .ss-existing .section-title,
+#science-sos .ss-existing .ai-card > div {
+  flex-wrap: wrap;
+}
+#science-sos .ss-panel p,
+#science-sos .ss-message,
+#science-sos .ss-existing p {
+  overflow-wrap: anywhere;
+}
+@media (min-width: 801px) and (max-width: 1100px) {
+  body { padding: 16px; }
+  #science-sos .ss-shell {
+    grid-template-columns: 184px minmax(0, 1fr);
+  }
+  #science-sos .ss-main { padding: 24px 20px; }
+  #science-sos .ss-reviewgrid,
+  #science-sos .ss-stats-grid,
+  #science-sos .ss-material-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #science-sos .ss-list {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+  #science-sos .ss-list:has(> :only-child) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Preserve the existing compact layout below the desktop range. */
+@media (max-width: 800px) {
+  #science-sos .ss-shell { grid-template-columns: minmax(0, 1fr); }
+  #science-sos .ss-reviewgrid { grid-template-columns: minmax(0, 1fr); }
+}

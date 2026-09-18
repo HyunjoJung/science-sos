@@ -78,6 +78,8 @@ p {
 small {
   font-size: 11px;
 }
+/* Legacy experiment components must not style the workspace shell. */
+.ss-existing {
 .shell {
   display: flex;
   min-height: 100vh;
@@ -1428,4 +1430,6 @@ footer span:last-child {
     transition: none !important;
     animation: none !important;
   }
+}
+
 }
