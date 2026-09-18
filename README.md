@@ -28,6 +28,7 @@ AI IMPACT: AI for Good 서울 정책 토론 및 해커톤(2026-09-18) 프로젝�
 
 ## 문서
 
+- [PRD · 제품 요구사항 및 구현 완료 기준](docs/PRD.md) — 상세 구현의 기준 문서
 - [MVP 명세](docs/mvp.md)
 - [정책·공공지원 제안 초안](docs/policy-proposal.md)
 - [구현 작업 목록](docs/backlog.md)
