@@ -1,6 +1,12 @@
 import { z } from "zod";
 export const proposalSchema = z.object({
-  hypothesis: z.enum(["mass_only", "size_only", "liquid_missed", "hold"]),
+  hypothesis: z.enum([
+    "mass_only",
+    "size_only",
+    "liquid_missed",
+    "other",
+    "hold",
+  ]),
   reason_status: z.enum(["supported", "contradictory", "insufficient"]),
   evidence: z.string().max(300),
   note: z.string().max(500),

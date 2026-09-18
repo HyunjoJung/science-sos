@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import {
   FlaskConical,
   ArrowUpRight,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import {
   items,
+  lessons,
   experiments,
   hypotheses,
   states,
@@ -35,569 +36,6 @@ type Experiment = {
   result: string;
   id: string;
 };
-async function api(
-  action: string,
-  data: unknown,
-  id: string | null = null,
-  version: number | null = null,
-) {
-  const res = await fetch("/api/lab", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action,
-      data,
-      id,
-      version,
-      request: crypto.randomUUID(),
-    }),
-  });
-  const v = await res.json();
-  if (!res.ok) throw Error(v.error);
-  return v;
-}
-export default function Lab({ configured }: { configured: boolean }) {
-  const [member, setMember] = useState<Member | null>(null),
-    [records, setRecords] = useState<RecordRow[]>([]),
-    [selected, setSelected] = useState<string | null>(null),
-    [itemId, setItemId] = useState("D01"),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false),
-    [loaded, setLoaded] = useState(false),
-    [filter, setFilter] = useState("all"),
-    [view, setView] = useState("lab");
-  const refresh = useCallback(async () => {
-    if (!configured) {
-      setLoaded(true);
-      return;
-    }
-    try {
-      const res = await fetch("/api/lab", { cache: "no-store" });
-      const v = await res.json();
-      if (!res.ok) throw Error(v.error);
-      setMember(v.member);
-      setRecords(v.records ?? []);
-      setLoaded(true);
-    } catch (e) {
-      setError((e as Error).message);
-      setLoaded(true);
-    }
-  }, [configured]);
-  useEffect(() => {
-    refresh();
-    const t = setInterval(() => {
-      if (!document.hidden) refresh();
-    }, 5000);
-    return () => clearInterval(t);
-  }, [refresh]);
-  async function act(action: string, data: unknown, r?: RecordRow) {
-    setBusy(true);
-    setError("");
-    try {
-      const v = await api(action, data, r?.id ?? null, r?.version ?? null);
-      await refresh();
-      if (v.id) setSelected(v.id);
-      if (action === "logout") setSelected(null);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  const row = records.find((r) => r.id === selected);
-  const current = items.find((i) => i.id === itemId)!;
-  const teacher = member?.role === "teacher";
-  return (
-    <div className="shell">
-      <aside className="sidebar">
-        <a className="brand" href="/">
-          <span className="brand-icon">
-            <FlaskConical size={23} />
-          </span>
-          <div>
-            과학SOS<small>반례실험실</small>
-          </div>
-        </a>
-        <div className="workspace">
-          <span className="avatar">S</span>
-          <div>
-            우리의 과학 교실<small>밀도 · 중학교 과학</small>
-          </div>
-          <ChevronRight size={15} />
-        </div>
-        <div className="nav-label">WORKSPACE</div>
-        <nav>
-          <button
-            className={view === "lab" ? "active" : ""}
-            onClick={() => setView("lab")}
-          >
-            <Layers size={18} />
-            {teacher ? "우리 반 탐구 기록" : "나의 실험실"}
-            <span className="nav-dot" />
-          </button>
-          <button
-            className={view === "journal" ? "active" : ""}
-            onClick={() => setView("journal")}
-          >
-            <BookOpen size={18} />
-            생각의 변화
-            <span className="count">
-              {records.filter((r) => r.revised_text).length}
-            </span>
-          </button>
-        </nav>
-        <div className="side-note">
-          <Atom size={28} />
-          <b>틀려도 괜찮아요.</b>
-          <p>
-            새로운 발견은
-            <br />
-            질문에서 시작되니까요.
-          </p>
-          <div className="mini-orbit" />
-        </div>
-        <div className="sidebar-bottom">
-          <span className="status-dot" />
-          교사와 함께하는 탐구<small>AI IMPACT · SEOUL 2026</small>
-        </div>
-      </aside>
-      <div className="main-wrap">
-        <header>
-          <div className="breadcrumb">
-            워크스페이스 <ChevronRight size={13} />
-            <b>{teacher ? "선생님 공간" : "반례실험실"}</b>
-          </div>
-          <div className="header-right">
-            <span className="pill soft">
-              <span className="status-dot" />
-              밀도 탐구
-            </span>
-            {member ? (
-              <>
-                <span className="avatar small">{member.alias.slice(0, 1)}</span>
-                <span>{member.alias}</span>
-                <button
-                  className="icon-btn"
-                  aria-label="로그아웃"
-                  onClick={() => act("logout", {})}
-                >
-                  <LogOut size={17} />
-                </button>
-              </>
-            ) : (
-              <span className="muted">SCIENCE SOS</span>
-            )}
-          </div>
-        </header>
-        <main>
-          <div className="page-top">
-            <div>
-              <div className="eyebrow">THINK. OBSERVE. RETHINK.</div>
-              <h1>
-                {teacher
-                  ? "같은 오답, 다른 생각."
-                  : "생각이 바뀌는 순간을 만나요."}
-              </h1>
-              <p>
-                {teacher
-                  ? "학생의 이유를 읽고, 다음 발견으로 이어지는 실험을 골라주세요."
-                  : "예측하고, 직접 관찰하고, 나만의 설명을 다시 써보세요."}
-              </p>
-            </div>
-            <span className="chapter">
-              <FlaskConical size={18} />
-              물질의 특성 <span>01</span>
-            </span>
-          </div>
-          {error && (
-            <div className="error" role="alert">
-              {error}
-              <button onClick={() => setError("")}>닫기</button>
-            </div>
-          )}
-          {!member ? (
-            <div className="welcome-grid">
-              <div className="welcome-art">
-                <div className="pill">작은 실험, 새로운 생각</div>
-                <h2>
-                  왜 그렇게
-                  <br />
-                  생각했나요<span>?</span>
-                </h2>
-                <p>
-                  정답보다 궁금한 건, 너의 이유.
-                  <br />한 번의 관찰로 생각의 다음 문을 열어요.
-                </p>
-                <div className="hero-tanks">
-                  <Tank name="나무" color="wood" />
-                  <Tank name="철" color="iron" />
-                </div>
-                <div className="art-caption">
-                  <span>01 예측</span>
-                  <ArrowRight size={16} />
-                  <span>02 관찰</span>
-                  <ArrowRight size={16} />
-                  <span>03 다시 설명</span>
-                </div>
-              </div>
-              <section className="card login">
-                <span className="eyebrow">WELCOME TO THE LAB</span>
-                <h2>실험실에 들어가기</h2>
-                <p>배정받은 학생 또는 교사 계정으로 로그인하세요.</p>
-                {!configured ? (
-                  <div className="notice">
-                    데이터베이스 연결 준비 중입니다. 연결 후 실제 기록을 저장할
-                    수 있어요.
-                  </div>
-                ) : (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const f = new FormData(e.currentTarget);
-                      act("login", {
-                        email: f.get("email"),
-                        password: f.get("password"),
-                      });
-                    }}
-                  >
-                    <label>
-                      이메일
-                      <input
-                        name="email"
-                        type="email"
-                        autoComplete="username"
-                        required
-                        placeholder="배정받은 이메일"
-                      />
-                    </label>
-                    <label>
-                      비밀번호
-                      <input
-                        name="password"
-                        type="password"
-                        autoComplete="current-password"
-                        required
-                        placeholder="비밀번호를 입력하세요"
-                      />
-                    </label>
-                    <button className="primary full" disabled={busy || !loaded}>
-                      {busy ? "연결 중…" : "실험실 입장"}
-                      <ArrowRight size={17} />
-                    </button>
-                  </form>
-                )}
-                <div className="login-foot">
-                  <ShieldCheck size={18} />
-                  <span>
-                    학생의 기록은 담당 선생님만 볼 수 있어요.
-                    <br />
-                    AI의 제안은 선생님이 확인해요.
-                  </span>
-                </div>
-              </section>
-            </div>
-          ) : (
-            <>
-              <div className="stats">
-                <Stat
-                  label={teacher ? "탐구 기록" : "나의 탐구"}
-                  value={records.length}
-                  suffix="개"
-                />
-                <Stat
-                  label="교사 확인 대기"
-                  value={
-                    records.filter((r) => r.state === "awaiting_review").length
-                  }
-                  suffix="개"
-                />
-                <Stat
-                  label="설명 다시 쓰기"
-                  value={records.filter((r) => r.revised_text).length}
-                  suffix="개"
-                />
-                <Stat
-                  label="새 사례까지 완료"
-                  value={records.filter((r) => r.state === "completed").length}
-                  suffix="개"
-                />
-              </div>
-              {view === "journal" ? (
-                <section className="card">
-                  <div className="section-title">
-                    <h2>내 설명은 어떻게 달라졌을까?</h2>
-                    <span className="pill">사고 기록</span>
-                  </div>
-                  {records.filter((r) => r.revised_text).length === 0 ? (
-                    <Empty text="아직 수정한 설명이 없어요. 실험을 마치면 이곳에 기록이 쌓여요." />
-                  ) : (
-                    records
-                      .filter((r) => r.revised_text)
-                      .map((r) => (
-                        <div className="journal" key={r.id}>
-                          <b>
-                            {r.student_alias} ·{" "}
-                            {items.find((i) => i.id === r.item_id)?.title}
-                          </b>
-                          <Comparison
-                            before={r.reason}
-                            after={r.revised_text!}
-                          />
-                          <p className="muted">
-                            나의 발견 · {r.self_note || "메모 없음"}
-                          </p>
-                        </div>
-                      ))
-                  )}
-                </section>
-              ) : teacher ? (
-                <div className="teacher-grid">
-                  <section className="card record-list">
-                    <div className="section-title">
-                      <h2>우리 반 생각 모음</h2>
-                      <button
-                        className="icon-btn"
-                        aria-label="기록 새로고침"
-                        onClick={refresh}
-                      >
-                        <RefreshCw size={16} />
-                      </button>
-                    </div>
-                    <label>
-                      같은 이유로 묶어 보기
-                      <select
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                      >
-                        <option value="all">전체 생각</option>
-                        {Object.entries(hypotheses).map(([k, v]) => (
-                          <option key={k} value={k}>
-                            {v} ·{" "}
-                            {
-                              records.filter(
-                                (r) =>
-                                  r.analysis_mode === "live" &&
-                                  r.hypothesis === k,
-                              ).length
-                            }
-                            개
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="filters">
-                      {[
-                        ["all", "전체"],
-                        ["awaiting_review", "확인 대기"],
-                        ["needs_more_reason", "보류"],
-                        ["reassessed", "재확인"],
-                      ].map(([k, v]) => (
-                        <button
-                          key={k}
-                          className={filter === k ? "selected" : ""}
-                          onClick={() => setFilter(k)}
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-                    {records
-                      .filter(
-                        (r) =>
-                          filter === "all" ||
-                          r.state === filter ||
-                          (r.analysis_mode === "live" &&
-                            r.hypothesis === filter),
-                      )
-                      .map((r) => (
-                        <button
-                          className={
-                            "record-item " +
-                            (selected === r.id ? "selected" : "")
-                          }
-                          key={r.id}
-                          onClick={() => setSelected(r.id)}
-                        >
-                          <div>
-                            <span className="avatar small">
-                              {r.student_alias.slice(0, 1)}
-                            </span>
-                            <b>{r.student_alias}</b>
-                            <span className="tiny-pill">{states[r.state]}</span>
-                          </div>
-                          <p>{r.reason}</p>
-                          <small>
-                            {hypotheses[r.hypothesis] || "분석 대기"}
-                            <ChevronRight size={14} />
-                          </small>
-                        </button>
-                      ))}
-                    {records.length === 0 && (
-                      <Empty text="학생이 이유를 제출하면 여기에 표시돼요." />
-                    )}
-                  </section>
-                  <section className="card">
-                    {row ? (
-                      <Teacher
-                        key={row.id + row.version + row.analysis_mode}
-                        r={row}
-                        act={act}
-                        busy={busy}
-                      />
-                    ) : (
-                      <Empty text="왼쪽에서 학생의 탐구 기록을 선택해 주세요." />
-                    )}
-                  </section>
-                </div>
-              ) : (
-                <div className="student-grid">
-                  <section className="card main-card">
-                    {row ? (
-                      <Student
-                        key={row.id + row.version}
-                        r={row}
-                        act={act}
-                        busy={busy}
-                      />
-                    ) : (
-                      <>
-                        <div className="section-title">
-                          <span className="pill peach">오늘의 탐구 질문</span>
-                          <span className="muted">약 10분</span>
-                        </div>
-                        <div className="item-tabs">
-                          {items.slice(0, 3).map((i, n) => (
-                            <button
-                              key={i.id}
-                              onClick={() => setItemId(i.id)}
-                              className={itemId === i.id ? "selected" : ""}
-                            >
-                              실험 0{n + 1}
-                            </button>
-                          ))}
-                        </div>
-                        <h2 className="question">{current.title}</h2>
-                        <p>{current.description}</p>
-                        <div className="object-row">
-                          {current.objects.map((o) => (
-                            <div
-                              className={"object-card " + o.color}
-                              key={o.name}
-                            >
-                              <div className={"cube " + o.color} />
-                              <b>{o.name}</b>
-                              <strong>{o.mass}</strong>
-                              <small>{o.detail}</small>
-                            </div>
-                          ))}
-                        </div>
-                        <Prediction
-                          key={itemId}
-                          choices={current.choices}
-                          busy={busy}
-                          onSubmit={(prediction, reason) =>
-                            act("submit", { item: itemId, prediction, reason })
-                          }
-                        />
-                      </>
-                    )}
-                  </section>
-                  <aside className="right-rail">
-                    <section className="card help-card">
-                      <span className="icon-circle">
-                        <Lightbulb size={20} />
-                      </span>
-                      <h3>
-                        정답보다 중요한 건<br />
-                        생각의 이유예요.
-                      </h3>
-                      <p>
-                        지금 알고 있는 것으로 설명해 보세요. 관찰한 뒤 생각을
-                        바꿔도 괜찮아요.
-                      </p>
-                      <div className="hint-line">
-                        언제 <span>조건을 비교해요</span>
-                      </div>
-                      <div className="hint-line">
-                        무엇을 봤나 <span>관찰을 기록해요</span>
-                      </div>
-                      <div className="hint-line">
-                        둘 다 설명하려면 <span>생각을 연결해요</span>
-                      </div>
-                    </section>
-                    <section className="card">
-                      <div className="section-title">
-                        <h3>나의 탐구 기록</h3>
-                        <span className="count">{records.length}</span>
-                      </div>
-                      <button
-                        className="text-btn"
-                        onClick={() => setSelected(null)}
-                      >
-                        + 새로운 탐구 시작
-                      </button>
-                      {records.length === 0 ? (
-                        <p className="muted small-text">
-                          첫 번째 예측을 남겨보세요.
-                        </p>
-                      ) : (
-                        records.map((r) => (
-                          <button
-                            className="history-item"
-                            onClick={() => setSelected(r.id)}
-                            key={r.id}
-                          >
-                            <span>
-                              {items.find((i) => i.id === r.item_id)?.title}
-                            </span>
-                            <small>{states[r.state]}</small>
-                          </button>
-                        ))
-                      )}
-                    </section>
-                  </aside>
-                </div>
-              )}
-            </>
-          )}
-          <footer>
-            <span>과학SOS · 반례실험실</span>
-            <span>정답을 넘어, 생각의 변화로.</span>
-            <span>AI FOR GOOD SEOUL</span>
-          </footer>
-        </main>
-      </div>
-    </div>
-  );
-}
-function Stat({
-  label,
-  value,
-  suffix,
-}: {
-  label: string;
-  value: number;
-  suffix: string;
-}) {
-  return (
-    <div className="stat">
-      <span>{label}</span>
-      <strong>
-        {value}
-        <small>{suffix}</small>
-      </strong>
-      <Activity size={20} />
-    </div>
-  );
-}
-function Empty({ text }: { text: string }) {
-  return (
-    <div className="empty">
-      <Search size={30} />
-      <p>{text}</p>
-    </div>
-  );
-}
 function Tank({
   name,
   color,
@@ -682,7 +120,15 @@ function Prediction({
   );
 }
 type Act = (a: string, d: unknown, r?: RecordRow) => Promise<void>;
-function Student({ r, act, busy }: { r: RecordRow; act: Act; busy: boolean }) {
+export function Student({
+  r,
+  act,
+  busy,
+}: {
+  r: RecordRow;
+  act: Act;
+  busy: boolean;
+}) {
   const item = items.find((i) => i.id === r.item_id)!,
     [exp, setExp] = useState<Experiment | null>(null),
     [played, setPlayed] = useState(false),
@@ -747,7 +193,8 @@ function Student({ r, act, busy }: { r: RecordRow; act: Act; busy: boolean }) {
           }}
         >
           <div className="notice">
-            어떤 조건을 보고 그렇게 생각했나요? 이유를 조금 더 설명해 주세요.
+            {r.teacher_question ||
+              "어떤 조건을 보고 그렇게 생각했나요? 이유를 조금 더 설명해 주세요."}
           </div>
           <label>
             이유 보완
@@ -765,7 +212,37 @@ function Student({ r, act, busy }: { r: RecordRow; act: Act; busy: boolean }) {
         </form>
       )}
       {expError && <div className="error">{expError}</div>}
-      {r.state === "experiment_assigned" && exp && (
+      {r.state === "experiment_assigned" && exp?.id === "guided" && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            act("observe", { observation: text }, r);
+          }}
+        >
+          <div className="ss-ai">
+            <span className="ss-pill teal">선생님이 보낸 탐구 활동</span>
+            <strong>{lessons.find((l) => l.id === r.item_id)?.followup}</strong>
+            <p>
+              조건을 비교하고 선생님과 자료 또는 실험을 살펴본 뒤, 확인한 내용을
+              직접 기록해요.
+            </p>
+          </div>
+          <label>
+            내가 확인하고 관찰한 내용
+            <textarea
+              required
+              maxLength={500}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="무엇을 비교했고, 어떤 결과를 확인했나요?"
+            />
+          </label>
+          <button className="primary" disabled={busy || !text.trim()}>
+            관찰 기록 저장하기 →
+          </button>
+        </form>
+      )}
+      {r.state === "experiment_assigned" && exp && exp.id !== "guided" && (
         <div className="experiment">
           <div className="section-title">
             <h3>직접 관찰해 볼까요?</h3>
@@ -775,6 +252,13 @@ function Student({ r, act, busy }: { r: RecordRow; act: Act; busy: boolean }) {
             </span>
           </div>
           <p>내 예측과 다른 점을 찾아보세요.</p>
+          <div className="notice">
+            {exp.id === "wood80_iron20"
+              ? "언제 · 더 무거운 물체가 뜰 수도 있을까요? 무엇을 봤나 · 두 물체의 결과를 내 예측과 비교해요."
+              : exp.id === "split_wood"
+                ? "언제 · 같은 나무를 나누면 어떤 값이 함께 바뀔까요? 무엇을 봤나 · 나누기 전후를 비교해요."
+                : "언제 · 물체는 그대로인데 결과가 바뀔까요? 둘 다 설명하려면 · 달라진 액체 조건을 찾아요."}
+          </div>
           <div className="experiment-tanks">
             <Tank
               name={exp.left}
@@ -884,7 +368,7 @@ function Student({ r, act, busy }: { r: RecordRow; act: Act; busy: boolean }) {
           </div>
           {r.scores && (
             <div className="score-row">
-              {["조건 비교", "관찰 증거", "밀도 설명"].map((s, n) => (
+              {["조건 비교", "관찰 증거", "개념 설명"].map((s, n) => (
                 <div key={s}>
                   {s}
                   <strong>{r.scores![n]} / 2</strong>
@@ -923,7 +407,15 @@ function Comparison({ before, after }: { before: string; after: string }) {
     </div>
   );
 }
-function Teacher({ r, act, busy }: { r: RecordRow; act: Act; busy: boolean }) {
+export function Teacher({
+  r,
+  act,
+  busy,
+}: {
+  r: RecordRow;
+  act: Act;
+  busy: boolean;
+}) {
   const [h, setH] = useState<Hypothesis>(r.hypothesis),
     [e, setE] = useState(
       r.experiment_id ??
@@ -947,19 +439,23 @@ function Teacher({ r, act, busy }: { r: RecordRow; act: Act; busy: boolean }) {
       <div className="ai-card">
         <div>
           <Atom size={18} />
-          <b>AI의 가설</b>
+          <b>{r.experiment_id ? "검토한 가설" : "AI의 가설"}</b>
           <span className="tiny-pill">
             {r.analysis_mode === "live"
               ? "실시간 분석"
-              : r.analysis_mode === "pending"
-                ? "분석 대기"
-                : "분석 불가 · 직접 검토"}
+              : r.experiment_id
+                ? "교사 직접 검토"
+                : r.analysis_mode === "pending" && r.state === "awaiting_review"
+                  ? "분석 대기"
+                  : "분석 불가 · 직접 검토"}
           </span>
         </div>
         <h3>{hypotheses[r.hypothesis]}</h3>
         <p>
           {r.analysis_note ||
-            "AI가 이유를 분석 중입니다. 선생님이 먼저 직접 검토할 수도 있어요."}
+            (r.experiment_id
+              ? "선생님이 원문을 읽고 가설과 실험을 선택했습니다."
+              : "AI 분석을 기다리고 있습니다. 선생님이 먼저 직접 검토할 수도 있어요.")}
         </p>
         <small>가설은 진단이 아닙니다. 원문과 조건을 함께 확인해 주세요.</small>
       </div>
@@ -1064,7 +560,7 @@ function Teacher({ r, act, busy }: { r: RecordRow; act: Act; busy: boolean }) {
             0: 근거 없음 · 1: 일부 설명 · 2: 조건과 증거를 연결
           </p>
           <div className="score-row">
-            {["조건 비교", "관찰 증거", "밀도 설명"].map((s, n) => (
+            {["조건 비교", "관찰 증거", "개념 설명"].map((s, n) => (
               <label key={s}>
                 {s}
                 <select

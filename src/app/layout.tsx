@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./reference.css";
+import "./workspace.css";
 export const metadata: Metadata = {
   title: "과학SOS · 반례실험실",
   description:

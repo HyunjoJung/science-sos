@@ -1,7 +1,9 @@
+import lessonDefinitions from "./lessons.json";
 export const hypotheses = {
   mass_only: "질량만 고려",
   size_only: "크기만 고려",
   liquid_missed: "액체 조건 누락",
+  other: "조건·개념 연결 확인",
   hold: "추가 설명 필요",
 } as const;
 export type Hypothesis = keyof typeof hypotheses;
@@ -15,6 +17,12 @@ export const states: Record<string, string> = {
   completed: "탐구 완료",
 };
 export const experiments = [
+  {
+    id: "guided",
+    title: "수업 질문으로 조건 비교하기",
+    subtitle: "교사와 탐구한 내용을 직접 기록해요",
+    kind: "other",
+  },
   {
     id: "wood80_iron20",
     title: "무거우면 가라앉을까?",
@@ -125,6 +133,66 @@ export const items = [
     pair: "",
   },
 ];
+items.push(...lessonDefinitions.filter((i) => i.id !== "D01"));
+const transfers = [
+  [
+    "D14",
+    "밀폐 용기 안 물 50g에 설탕 5g을 녹이면 내용물의 전체 질량은?",
+    ["55g", "50g", "5g"],
+  ],
+  [
+    "D15",
+    "두 전구를 병렬로 연결한 회로에서 한 갈래의 전구만 빼면, 다른 갈래의 전구는?",
+    ["계속 켜져요", "반드시 꺼져요", "전류가 두 배가 돼요"],
+  ],
+  [
+    "D16",
+    "같은 온도의 금속과 나무를 온도계로 재면?",
+    ["같은 온도예요", "금속이 반드시 더 낮아요", "나무가 반드시 더 낮아요"],
+  ],
+  [
+    "D17",
+    "빛을 받는 식물에서 광합성과 호흡은?",
+    ["둘 다 일어날 수 있어요", "광합성만 일어나요", "호흡만 일어나요"],
+  ],
+  [
+    "D18",
+    "달의 위상 변화와 월식을 구분하면?",
+    [
+      "월식은 지구 그림자 때문이고 평소 위상 변화는 보는 방향 때문이에요",
+      "둘 다 항상 지구 그림자 때문이에요",
+      "둘 다 달이 빛을 내기 때문이에요",
+    ],
+  ],
+  [
+    "D19",
+    "온도와 기체 양이 일정한 밀폐 주사기의 부피를 늘리면 압력은?",
+    ["작아져요", "커져요", "항상 같아요"],
+  ],
+  [
+    "D20",
+    "밀폐 용기 안 물 일부가 증발해도 용기 전체 질량은?",
+    ["같아요", "줄어들어요", "늘어나요"],
+  ],
+] as const;
+items.push(
+  ...transfers.map(([id, description, choices]) => ({
+    id,
+    title: "새로운 조건에서도 설명해요",
+    tag: "새 사례",
+    description,
+    choices: [...choices],
+    objects: [],
+    pair: "",
+  })),
+);
+for (const item of items)
+  if (!item.choices.includes("아직 모르겠다"))
+    item.choices.push("아직 모르겠다");
+export const lessons = lessonDefinitions.map((l) => ({
+  ...l,
+  ...items.find((i) => i.id === l.id)!,
+}));
 export type RecordRow = {
   id: string;
   student_id: string;
@@ -147,4 +215,9 @@ export type RecordRow = {
   scores: number[] | null;
   created_at: string;
   updated_at: string;
+  teacher_question?: string;
+  review_note?: string;
+  initial_stuck?: string;
+  initial_note?: string;
+  difficult?: boolean;
 };

@@ -11,7 +11,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "node --env-file=.env.local scripts/integration.mjs",
+    "test:classroom": "node --env-file=.env.local scripts/classroom-integration.mjs",
+    "worker": "node --env-file=.env.local scripts/cursor-worker.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

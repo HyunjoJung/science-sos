@@ -1,0 +1,343 @@
+body {
+  margin: 0;
+  padding: 24px;
+  background: #edf1f6;
+  color-scheme: light;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    sans-serif;
+}
+#science-sos {
+  max-width: 1200px;
+  margin: auto;
+  min-height: calc(100vh - 48px);
+  box-shadow: 0 8px 35px #223d6607;
+  --ss-bg: #f5f7fb;
+  --ss-paper: #fff;
+  --ss-ink: #203858;
+  --ss-muted: #66758a;
+  --ss-line: #e0e7f0;
+  --ss-soft: #f0f4f9;
+  --ss-teal: #234d82;
+  --ss-tint: #eef4fc;
+  --ss-mint: #197464;
+  --ss-mint-bg: #e9f6f1;
+  --ss-amber: #966122;
+  --ss-amber-bg: #fff5e5;
+}
+#science-sos header {
+  height: auto;
+  width: auto;
+  position: static;
+}
+#science-sos main {
+  max-width: none;
+  margin: 0;
+}
+#science-sos footer {
+  margin: 0;
+}
+#science-sos .ss-top {
+  min-height: 92px;
+}
+#science-sos .ss-logo {
+  background: #234d82;
+  border-radius: 5px;
+  height: 36px;
+  color: white;
+}
+#science-sos .ss-role > span {
+  background: var(--ss-teal);
+  padding: 7px 16px;
+  color: white;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 650;
+}
+#science-sos .ss-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ss-muted);
+  font-size: 12px;
+}
+#science-sos .ss-icon-button {
+  border: 0;
+  background: none;
+  color: var(--ss-muted);
+  padding: 8px;
+  display: flex;
+}
+#science-sos .ss-sidebar {
+  min-height: calc(100vh - 180px);
+}
+#science-sos nav.ss-work-tabs {
+  margin-top: 0;
+  border-bottom: 1px solid var(--ss-line);
+  gap: 2px;
+}
+#science-sos .ss-work-tabs button {
+  width: auto;
+  display: block;
+  margin: 0 0 -1px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  font-size: 12px;
+  padding: 12px 13px;
+  min-height: 44px;
+}
+#science-sos .ss-work-tabs button[aria-pressed="true"] {
+  background: white;
+  border-bottom-color: var(--ss-teal);
+  color: var(--ss-teal);
+}
+#science-sos .ss-label input,
+#science-sos .ss-label textarea,
+#science-sos .ss-label select {
+  margin-top: 7px;
+}
+#science-sos .ss-label {
+  margin-bottom: 16px;
+}
+#science-sos .ss-field {
+  display: block;
+}
+#science-sos .ss-login-wrap {
+  max-width: 530px;
+  margin: 55px auto 100px;
+}
+#science-sos .ss-login-wrap .ss-panel {
+  padding: 30px;
+}
+#science-sos .ss-login-wrap form {
+  margin-top: 24px;
+}
+#science-sos .ss-alert {
+  padding: 14px 18px;
+  border: 1px solid #e8c3a7;
+  border-radius: 9px;
+  background: #fff4e7;
+  color: #78491f;
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 18px;
+}
+#science-sos .ss-alert button {
+  border: 0;
+  background: none;
+  color: inherit;
+}
+#science-sos .ss-chat-pair {
+  display: grid;
+  gap: 15px;
+}
+#science-sos .ss-message p {
+  white-space: pre-wrap;
+  color: inherit;
+}
+#science-sos .ss-chat-pair .user {
+  color: white;
+}
+#science-sos .ss-message.assistant {
+  margin-bottom: 10px;
+}
+#science-sos .ss-spaced {
+  margin-top: 20px;
+}
+#science-sos .ss-topic-detail {
+  margin-top: 18px;
+}
+#science-sos .ss-topic-detail h1 {
+  margin: 15px 0;
+}
+#science-sos .ss-topic-detail .ss-work-tabs {
+  margin-top: 24px;
+}
+#science-sos .ss-topic-list-row {
+  border: 0;
+  border-bottom: 1px solid var(--ss-line);
+  border-radius: 0;
+  padding: 19px 4px;
+}
+#science-sos .ss-topic-list-row strong {
+  font-size: 15px;
+}
+#science-sos .ss-board-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+#science-sos .ss-board-toolbar .ss-label:first-child {
+  flex: 1;
+  min-width: 180px;
+}
+#science-sos .ss-board-toolbar label {
+  margin: 0;
+}
+#science-sos .ss-person blockquote {
+  overflow-wrap: anywhere;
+}
+#science-sos .ss-feedback-text,
+#science-sos .ss-board-answer-text,
+#science-sos .ss-thread-reply p {
+  white-space: pre-wrap;
+}
+#science-sos details summary {
+  cursor: pointer;
+  padding: 9px 0;
+}
+#science-sos .ss-source p {
+  color: var(--ss-ink);
+}
+#science-sos button:disabled {
+  cursor: not-allowed;
+}
+#science-sos .ss-existing {
+  --ink: var(--ss-ink);
+  --green: var(--ss-teal);
+  --line: var(--ss-line);
+  --muted: var(--ss-muted);
+}
+#science-sos .ss-existing label {
+  display: block;
+  margin: 15px 0;
+}
+#science-sos .ss-existing h2 {
+  margin-bottom: 18px;
+}
+#science-sos .ss-existing .original {
+  background: var(--ss-soft);
+}
+#science-sos .ss-existing .original p,
+#science-sos .ss-existing .original b {
+  color: var(--ss-ink);
+}
+#science-sos .ss-existing .primary {
+  background: var(--ss-teal);
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  padding: 11px 17px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+#science-sos .ss-existing .secondary {
+  background: var(--ss-paper);
+  color: var(--ss-ink);
+  border: 1px solid var(--ss-line);
+  border-radius: 8px;
+  padding: 11px 17px;
+}
+#science-sos .ss-existing .notice,
+#science-sos .ss-existing .observation-result {
+  background: var(--ss-mint-bg);
+  color: var(--ss-mint);
+  border-color: var(--ss-line);
+}
+#science-sos .ss-existing .progress {
+  flex-wrap: wrap;
+}
+#science-sos .ss-existing .choice {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+#science-sos .ss-existing .choice input {
+  width: auto;
+}
+#science-sos .ss-existing .comparison > div {
+  background: var(--ss-soft);
+}
+#science-sos .ss-existing .comparison > div:last-child {
+  background: var(--ss-mint-bg);
+}
+#science-sos .ss-existing .comparison mark {
+  background: #cee8da;
+}
+#science-sos .ss-existing .ai-card {
+  background: var(--ss-tint);
+  border-color: var(--ss-line);
+}
+@media (max-width: 800px) {
+  #science-sos .ss-sidebar {
+    display: none;
+  }
+  #science-sos nav.ss-work-tabs {
+    display: flex;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  #science-sos .ss-work-tabs button {
+    white-space: nowrap;
+    font-size: 12px;
+    padding: 12px 10px;
+  }
+  #science-sos .ss-account {
+    gap: 5px;
+    font-size: 11px;
+  }
+}
+@media (max-width: 600px) {
+  body {
+    padding: 0;
+  }
+  #science-sos {
+    min-height: 100vh;
+    border-radius: 0;
+  }
+  #science-sos .ss-top {
+    gap: 8px;
+    min-height: 78px;
+  }
+  #science-sos .ss-role {
+    display: none;
+  }
+  #science-sos .ss-reviewgrid {
+    grid-template-columns: 1fr;
+  }
+  #science-sos .ss-list {
+    grid-template-columns: 1fr;
+    max-height: 300px;
+    overflow: auto;
+  }
+  #science-sos .ss-login-wrap {
+    margin: 30px auto;
+  }
+  #science-sos .ss-board-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  #science-sos .ss-feedback-card {
+    padding: 17px;
+  }
+  #science-sos .ss-stats-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  #science-sos .ss-existing .comparison {
+    grid-template-columns: 1fr;
+  }
+  #science-sos .ss-existing .comparison > svg {
+    transform: rotate(90deg);
+    margin: auto;
+  }
+  #science-sos .ss-person blockquote {
+    font-size: 14px;
+  }
+}
+
+#science-sos .ss-navitem {
+  white-space: nowrap;
+  font-size: 13px;
+  gap: 5px;
+  padding: 11px 8px;
+}

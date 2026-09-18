@@ -1,0 +1,1855 @@
+body {
+  margin: 0;
+  padding: 24px;
+  background: #edf1f6;
+  color-scheme: light;
+}
+#science-sos {
+  max-width: 1200px;
+  margin: auto;
+}
+@media (max-width: 600px) {
+  body {
+    padding: 0;
+  }
+}
+
+#science-sos {
+  --ss-bg: light-dark(#f5f6fc, #15172b);
+  --ss-paper: light-dark(#ffffff, #20233b);
+  --ss-ink: light-dark(#283153, #edf0ff);
+  --ss-muted: light-dark(#69728e, #b5bdd7);
+  --ss-line: light-dark(#e3e6f2, #3b405e);
+  --ss-soft: light-dark(#f0f2fa, #2a2e48);
+  --ss-teal: light-dark(#535ac8, #b3b8ff);
+  --ss-tint: light-dark(#eeefff, #313455);
+  --ss-amber: light-dark(#966122, #eac38c);
+  --ss-amber-bg: light-dark(#fff5e5, #44372a);
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Apple SD Gothic Neo",
+    "Malgun Gothic",
+    sans-serif;
+  color: var(--ss-ink);
+  background: var(--ss-bg);
+  font-size: 14px;
+  line-height: 1.55;
+  border-radius: 16px;
+  overflow: hidden;
+  text-align: left;
+  --ss-radius: 14px;
+}
+#science-sos * {
+  box-sizing: border-box;
+}
+#science-sos button,
+#science-sos input,
+#science-sos textarea,
+#science-sos select {
+  font: inherit;
+}
+#science-sos button {
+  cursor: pointer;
+}
+#science-sos button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+#science-sos h1,
+#science-sos h2,
+#science-sos h3,
+#science-sos p {
+  margin: 0;
+}
+#science-sos h1 {
+  font-size: 26px;
+  line-height: 1.4;
+  letter-spacing: -1px;
+  font-weight: 700;
+}
+#science-sos h2 {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.4px;
+}
+#science-sos h3 {
+  font-size: 15px;
+  font-weight: 650;
+}
+#science-sos button:focus-visible,
+#science-sos input:focus-visible,
+#science-sos textarea:focus-visible,
+#science-sos select:focus-visible {
+  outline: 3px solid var(--ss-teal);
+  outline-offset: 3px;
+}
+#science-sos .ss-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 19px 24px;
+  background: var(--ss-paper);
+  border-bottom: 1px solid var(--ss-line);
+  flex-wrap: wrap;
+}
+#science-sos .ss-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -0.5px;
+}
+#science-sos .ss-logo {
+  width: 31px;
+  height: 35px;
+  background: var(--ss-teal);
+  border-radius: 10px 10px 13px 13px;
+  display: grid;
+  place-items: center;
+  color: var(--ss-paper);
+  font-size: 20px;
+}
+#science-sos .ss-subbrand {
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  color: var(--ss-muted);
+  font-weight: 500;
+}
+#science-sos .ss-role {
+  padding: 4px;
+  background: var(--ss-soft);
+  border-radius: 10px;
+  display: flex;
+  gap: 4px;
+}
+#science-sos .ss-role button {
+  border: 0;
+  padding: 7px 17px;
+  color: var(--ss-muted);
+  border-radius: 7px;
+  background: transparent;
+  font-weight: 600;
+}
+#science-sos .ss-role button[aria-pressed="true"] {
+  background: var(--ss-paper);
+  color: var(--ss-ink);
+  box-shadow: 0 1px 4px #00000012;
+}
+#science-sos .ss-demo {
+  font-size: 11px;
+  color: var(--ss-muted);
+  border: 1px solid var(--ss-line);
+  padding: 4px 9px;
+  border-radius: 6px;
+}
+#science-sos .ss-shell {
+  display: grid;
+  grid-template-columns: 156px minmax(0, 1fr);
+}
+#science-sos .ss-sidebar {
+  background: var(--ss-paper);
+  padding: 25px 16px;
+  border-right: 1px solid var(--ss-line);
+}
+#science-sos .ss-smalltitle {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--ss-muted);
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+#science-sos .ss-navitem {
+  padding: 11px 10px;
+  border-radius: 9px;
+  background: var(--ss-tint);
+  color: var(--ss-teal);
+  font-weight: 650;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+#science-sos .ss-sidecourse {
+  margin-top: 30px;
+  padding: 13px 10px;
+  border: 1px solid var(--ss-line);
+  border-radius: 10px;
+}
+#science-sos .ss-sidecourse p {
+  font-size: 11px;
+  color: var(--ss-muted);
+  margin-top: 5px;
+}
+#science-sos .ss-sidehint {
+  margin-top: 35px;
+  font-size: 12px;
+  color: var(--ss-muted);
+  line-height: 1.8;
+  padding: 0 7px;
+}
+#science-sos .ss-main {
+  padding: 27px 25px 30px;
+  min-width: 0;
+}
+#science-sos .ss-eyebrow {
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--ss-teal);
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+}
+#science-sos .ss-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+#science-sos .ss-desc {
+  font-size: 13px;
+  color: var(--ss-muted);
+  margin-top: 6px;
+}
+#science-sos .ss-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: var(--ss-soft);
+  color: var(--ss-muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+#science-sos .ss-pill.teal {
+  background: var(--ss-tint);
+  color: var(--ss-teal);
+}
+#science-sos .ss-pill.amber {
+  background: var(--ss-amber-bg);
+  color: var(--ss-amber);
+}
+#science-sos .ss-lesson {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 17px 19px;
+  background: var(--ss-paper);
+  border: 1px solid var(--ss-line);
+  border-radius: var(--ss-radius);
+  margin-bottom: 22px;
+}
+#science-sos .ss-lesson p {
+  font-size: 12px;
+  color: var(--ss-muted);
+  margin-top: 4px;
+}
+#science-sos .ss-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0 0 14px;
+}
+#science-sos .ss-filter button {
+  padding: 7px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--ss-muted);
+  border-radius: 7px;
+  font-size: 12px;
+}
+#science-sos .ss-filter button[aria-pressed="true"] {
+  background: var(--ss-ink);
+  color: var(--ss-paper);
+}
+#science-sos .ss-reviewgrid {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.85fr) minmax(0, 1.4fr);
+  gap: 16px;
+  align-items: start;
+}
+#science-sos .ss-list {
+  display: grid;
+  gap: 10px;
+}
+#science-sos .ss-person {
+  display: block;
+  text-align: left;
+  width: 100%;
+  padding: 17px;
+  background: var(--ss-paper);
+  border: 1px solid var(--ss-line);
+  border-radius: var(--ss-radius);
+  color: var(--ss-ink);
+}
+#science-sos .ss-person[aria-pressed="true"] {
+  border-color: var(--ss-teal);
+  box-shadow: 0 0 0 1px var(--ss-teal);
+}
+#science-sos .ss-person-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+#science-sos .ss-avatar {
+  display: inline-grid;
+  place-items: center;
+  background: var(--ss-soft);
+  width: 31px;
+  height: 31px;
+  border-radius: 50%;
+  color: var(--ss-ink);
+  font-weight: 650;
+  margin-right: 7px;
+}
+#science-sos .ss-person blockquote {
+  margin: 15px 0 11px;
+  font-size: 15px;
+  font-weight: 600;
+}
+#science-sos .ss-person-foot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--ss-muted);
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+#science-sos .ss-panel {
+  background: var(--ss-paper);
+  border: 1px solid var(--ss-line);
+  border-radius: var(--ss-radius);
+  padding: 20px;
+  min-width: 0;
+}
+#science-sos .ss-panelhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--ss-line);
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+#science-sos .ss-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ss-muted);
+  margin-bottom: 8px;
+}
+#science-sos .ss-answer {
+  font-size: 17px;
+  line-height: 1.6;
+  letter-spacing: -0.3px;
+  margin-bottom: 17px;
+}
+#science-sos .ss-quote {
+  padding: 13px 15px;
+  background: var(--ss-soft);
+  border-left: 3px solid var(--ss-teal);
+  border-radius: 0 8px 8px 0;
+  font-size: 18px;
+  letter-spacing: -0.3px;
+  margin-bottom: 14px;
+  overflow-wrap: anywhere;
+}
+#science-sos .ss-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--ss-muted);
+  margin-bottom: 20px;
+}
+#science-sos .ss-meta span {
+  background: var(--ss-soft);
+  padding: 5px 8px;
+  border-radius: 5px;
+}
+#science-sos .ss-ai {
+  background: var(--ss-tint);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 20px;
+}
+#science-sos .ss-ai strong {
+  display: block;
+  font-size: 13px;
+  margin: 7px 0;
+  color: var(--ss-teal);
+}
+#science-sos .ss-ai p {
+  font-size: 12px;
+  color: var(--ss-muted);
+}
+#science-sos .ss-decision {
+  display: flex;
+  gap: 7px;
+  margin: 10px 0 15px;
+}
+#science-sos .ss-decision button {
+  flex: 1;
+  padding: 9px;
+  border: 1px solid var(--ss-line);
+  border-radius: 8px;
+  background: var(--ss-paper);
+  color: var(--ss-muted);
+}
+#science-sos .ss-decision button[aria-pressed="true"] {
+  border-color: var(--ss-teal);
+  color: var(--ss-teal);
+  background: var(--ss-tint);
+  font-weight: 600;
+}
+#science-sos input,
+#science-sos textarea,
+#science-sos select {
+  color: var(--ss-ink);
+  background: var(--ss-paper);
+  border: 1px solid var(--ss-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  width: 100%;
+  max-width: 100%;
+  font-size: 14px;
+}
+#science-sos textarea {
+  resize: vertical;
+  min-height: 82px;
+}
+#science-sos .ss-field {
+  margin-bottom: 14px;
+}
+#science-sos .ss-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid var(--ss-line);
+  border-radius: 8px;
+  background: var(--ss-paper);
+  color: var(--ss-ink);
+  padding: 11px 17px;
+  font-weight: 600;
+}
+#science-sos .ss-button.primary {
+  background: var(--ss-teal);
+  border-color: var(--ss-teal);
+  color: var(--ss-paper);
+}
+#science-sos .ss-wide {
+  width: 100%;
+}
+#science-sos .ss-note {
+  font-size: 11px;
+  color: var(--ss-muted);
+  margin-top: 9px;
+  line-height: 1.7;
+}
+#science-sos .ss-footer {
+  padding: 13px 24px;
+  border-top: 1px solid var(--ss-line);
+  background: var(--ss-paper);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--ss-muted);
+}
+#science-sos .ss-toast {
+  background: var(--ss-tint);
+  color: var(--ss-teal);
+  padding: 12px 16px;
+  border-radius: 9px;
+  margin-bottom: 15px;
+  font-size: 13px;
+}
+#science-sos .ss-student {
+  max-width: 760px;
+  margin: auto;
+}
+#science-sos .ss-student-switch {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+#science-sos .ss-student-switch select {
+  width: auto;
+}
+#science-sos .ss-student-tabs {
+  margin-left: auto;
+  display: flex;
+  gap: 7px;
+}
+#science-sos .ss-student-tabs button {
+  background: transparent;
+  border: 0;
+  color: var(--ss-muted);
+  padding: 9px 5px;
+  border-bottom: 2px solid transparent;
+}
+#science-sos .ss-student-tabs button[aria-pressed="true"] {
+  border-color: var(--ss-teal);
+  color: var(--ss-teal);
+}
+#science-sos .ss-question {
+  background: var(--ss-paper);
+  border: 1px solid var(--ss-line);
+  border-radius: var(--ss-radius);
+  padding: 26px;
+  margin-bottom: 16px;
+}
+#science-sos .ss-experiment {
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+  align-items: flex-end;
+  background: var(--ss-soft);
+  border-radius: 12px;
+  padding: 25px;
+  margin: 20px 0 15px;
+  min-height: 150px;
+}
+#science-sos .ss-object {
+  text-align: center;
+  min-width: 100px;
+  color: var(--ss-muted);
+  font-size: 12px;
+}
+#science-sos .ss-wood {
+  width: 138px;
+  height: 52px;
+  background: repeating-linear-gradient(
+    0deg,
+    #bb9168 0px,
+    #bb9168 8px,
+    #ac8059 9px,
+    #bb9168 10px
+  );
+  border-radius: 6px;
+  margin: 0 auto 13px;
+  box-shadow: 0 5px 0 #96704e;
+}
+#science-sos .ss-iron {
+  width: 70px;
+  height: 40px;
+  background: linear-gradient(135deg, #9caab6, #6b7e8b);
+  border-radius: 5px;
+  margin: 0 auto 13px;
+  box-shadow: 0 5px 0 #586a76;
+}
+#science-sos .ss-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+#science-sos .ss-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--ss-line);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+#science-sos .ss-option:has(input:checked) {
+  background: var(--ss-tint);
+  border-color: var(--ss-teal);
+  color: var(--ss-teal);
+}
+#science-sos .ss-option input,
+#science-sos .ss-check input {
+  width: auto;
+  accent-color: var(--ss-teal);
+}
+#science-sos .ss-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  margin-top: 9px;
+  color: var(--ss-muted);
+}
+#science-sos .ss-formrow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+#science-sos .ss-step {
+  font-size: 11px;
+  color: var(--ss-teal);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+#science-sos .ss-result {
+  padding: 27px 24px;
+  background: var(--ss-paper);
+  border: 1px solid var(--ss-line);
+  border-radius: var(--ss-radius);
+}
+#science-sos .ss-result h2 {
+  font-size: 23px;
+  margin: 14px 0 10px;
+}
+#science-sos .ss-result p {
+  color: var(--ss-muted);
+  margin-bottom: 18px;
+}
+#science-sos .ss-record {
+  margin-top: 20px;
+  padding: 17px;
+  background: var(--ss-soft);
+  border-radius: 10px;
+}
+#science-sos .ss-error {
+  color: var(--ss-amber);
+  font-size: 12px;
+  margin: 8px 0;
+}
+#science-sos .ss-empty {
+  padding: 28px 18px;
+  text-align: center;
+  color: var(--ss-muted);
+  border: 1px dashed var(--ss-line);
+  border-radius: 12px;
+}
+#science-sos [hidden] {
+  display: none !important;
+}
+@media (max-width: 800px) {
+  #science-sos .ss-shell {
+    grid-template-columns: 1fr;
+  }
+  #science-sos .ss-sidebar {
+    display: none;
+  }
+  #science-sos .ss-main {
+    padding: 23px 19px;
+  }
+  #science-sos .ss-demo {
+    display: none;
+  }
+}
+@media (max-width: 570px) {
+  #science-sos .ss-reviewgrid {
+    grid-template-columns: 1fr;
+  }
+  #science-sos .ss-list {
+    grid-template-columns: 1fr 1fr;
+  }
+  #science-sos .ss-person {
+    padding: 12px;
+  }
+  #science-sos .ss-person blockquote {
+    font-size: 14px;
+  }
+  #science-sos .ss-top {
+    padding: 15px;
+  }
+  #science-sos .ss-main {
+    padding: 21px 14px;
+  }
+  #science-sos .ss-brand {
+    font-size: 17px;
+  }
+  #science-sos .ss-role button {
+    padding: 8px 12px;
+  }
+  #science-sos h1 {
+    font-size: 24px;
+  }
+  #science-sos .ss-intro {
+    align-items: start;
+    flex-direction: column;
+  }
+  #science-sos .ss-formrow {
+    grid-template-columns: 1fr;
+  }
+  #science-sos .ss-question {
+    padding: 19px;
+  }
+  #science-sos .ss-experiment {
+    gap: 10px;
+    padding: 22px 8px;
+  }
+  #science-sos .ss-options {
+    grid-template-columns: 1fr;
+  }
+  #science-sos .ss-student-tabs {
+    margin-left: 0;
+  }
+  #science-sos input,
+  #science-sos textarea,
+  #science-sos select {
+    font-size: 16px;
+  }
+  #science-sos button {
+    min-height: 44px;
+  }
+  #science-sos .ss-lesson {
+    align-items: start;
+  }
+  #science-sos .ss-footer {
+    padding: 13px 16px;
+  }
+}
+#science-sos .ss-thinking {
+  margin: 14px 0 18px;
+  padding: 15px;
+  background: var(--ss-tint);
+  border-radius: 10px;
+}
+#science-sos .ss-thinking-title {
+  font-size: 13px;
+  font-weight: 650;
+  margin-bottom: 3px;
+}
+#science-sos .ss-thinking-sub {
+  font-size: 12px;
+  color: var(--ss-muted);
+}
+#science-sos .ss-thinking-options {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+#science-sos .ss-thinking-options button {
+  padding: 8px 12px;
+  border: 1px solid var(--ss-line);
+  border-radius: 18px;
+  background: var(--ss-paper);
+  color: var(--ss-teal);
+  font-size: 12px;
+  min-height: 38px;
+}
+#science-sos .ss-thinking-options button[aria-pressed="true"] {
+  background: var(--ss-teal);
+  color: var(--ss-paper);
+  border-color: var(--ss-teal);
+}
+#science-sos .ss-thinking-question {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+#science-sos .ss-thinking-starter {
+  font-size: 12px;
+  color: var(--ss-muted);
+  line-height: 1.8;
+}
+#science-sos .ss-thinking .ss-button {
+  margin-top: 12px;
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+#science-sos .ss-work-tabs {
+  display: flex;
+  gap: 7px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+#science-sos .ss-work-tabs button {
+  padding: 9px 14px;
+  border: 1px solid var(--ss-line);
+  border-radius: 8px;
+  background: var(--ss-paper);
+  color: var(--ss-muted);
+}
+#science-sos .ss-work-tabs button[aria-pressed="true"] {
+  background: var(--ss-tint);
+  color: var(--ss-teal);
+  border-color: var(--ss-teal);
+}
+#science-sos .ss-chat-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding: 15px 17px;
+  border: 1px solid var(--ss-line);
+  border-radius: 12px;
+  background: var(--ss-paper);
+}
+#science-sos .ss-chat-entry p {
+  font-size: 12px;
+  color: var(--ss-muted);
+  margin-top: 4px;
+}
+#science-sos .ss-chat-layout {
+  display: grid;
+  grid-template-columns: 165px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+#science-sos .ss-rooms {
+  display: grid;
+  gap: 8px;
+}
+#science-sos .ss-room {
+  padding: 14px;
+  text-align: left;
+  border: 1px solid var(--ss-line);
+  border-radius: 10px;
+  background: var(--ss-paper);
+  color: var(--ss-ink);
+}
+#science-sos .ss-room[aria-pressed="true"] {
+  border-color: var(--ss-teal);
+  background: var(--ss-tint);
+}
+#science-sos .ss-room strong {
+  display: block;
+  font-size: 13px;
+}
+#science-sos .ss-room span {
+  display: block;
+  font-size: 11px;
+  color: var(--ss-muted);
+  margin-top: 4px;
+}
+#science-sos .ss-chat {
+  background: var(--ss-paper);
+  border: 1px solid var(--ss-line);
+  border-radius: 14px;
+  overflow: hidden;
+  min-width: 0;
+}
+#science-sos .ss-chat-head {
+  padding: 17px 18px;
+  border-bottom: 1px solid var(--ss-line);
+}
+#science-sos .ss-chat-head p {
+  font-size: 12px;
+  color: var(--ss-muted);
+  margin-top: 5px;
+}
+#science-sos .ss-messages {
+  padding: 18px;
+  display: grid;
+  gap: 17px;
+  min-height: 230px;
+}
+#science-sos .ss-message {
+  max-width: 100%;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+#science-sos .ss-message.user {
+  justify-self: end;
+  background: var(--ss-teal);
+  color: var(--ss-paper);
+  padding: 10px 15px;
+  border-radius: 12px 12px 2px 12px;
+  max-width: 88%;
+}
+#science-sos .ss-message.assistant {
+  padding: 14px;
+  background: var(--ss-soft);
+  border-radius: 2px 12px 12px 12px;
+  width: 100%;
+}
+#science-sos .ss-message-label {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.6px;
+  color: var(--ss-muted);
+  margin-bottom: 7px;
+}
+#science-sos .ss-source {
+  display: block;
+  margin-top: 11px;
+  padding: 11px;
+  background: var(--ss-paper);
+  border: 1px solid var(--ss-line);
+  border-radius: 8px;
+  color: var(--ss-ink);
+  text-decoration: none;
+}
+#science-sos .ss-source summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ss-teal);
+  font-weight: 600;
+}
+#science-sos .ss-source p {
+  font-size: 12px;
+  margin-top: 8px;
+  white-space: pre-wrap;
+}
+#science-sos .ss-source strong {
+  display: block;
+  color: var(--ss-teal);
+  font-size: 13px;
+}
+#science-sos .ss-source span {
+  display: block;
+  font-size: 11px;
+  color: var(--ss-muted);
+  margin-top: 3px;
+}
+#science-sos .ss-chat-compose {
+  padding: 15px 18px;
+  border-top: 1px solid var(--ss-line);
+}
+#science-sos .ss-chat-compose textarea {
+  min-height: 68px;
+}
+#science-sos .ss-chat-compose-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+#science-sos .ss-chat-compose-row span {
+  font-size: 11px;
+  color: var(--ss-muted);
+}
+#science-sos .ss-chat-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 11px;
+}
+#science-sos .ss-chat-starters button {
+  border: 1px solid var(--ss-line);
+  border-radius: 16px;
+  background: var(--ss-paper);
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--ss-teal);
+}
+#science-sos .ss-material-row {
+  padding: 15px 0;
+  border-bottom: 1px solid var(--ss-line);
+}
+#science-sos .ss-material-row:last-child {
+  border-bottom: 0;
+}
+#science-sos .ss-material-row p {
+  font-size: 12px;
+  color: var(--ss-muted);
+  margin-top: 5px;
+}
+#science-sos .ss-upload {
+  border: 1px dashed var(--ss-teal);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 16px 0;
+  background: var(--ss-tint);
+}
+#science-sos .ss-upload input {
+  background: var(--ss-paper);
+  font-size: 12px;
+}
+#science-sos .ss-material-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+#science-sos .ss-material-preview {
+  white-space: pre-wrap;
+  font-size: 12px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 10px;
+  background: var(--ss-soft);
+  margin-top: 10px;
+  border-radius: 7px;
+}
+#science-sos .ss-ai-status {
+  font-size: 11px;
+  color: var(--ss-muted);
+  margin-top: 8px;
+}
+@media (max-width: 600px) {
+  #science-sos .ss-chat-layout,
+  #science-sos .ss-material-grid {
+    grid-template-columns: 1fr;
+  }
+  #science-sos .ss-rooms {
+    grid-template-columns: 1fr 1fr;
+  }
+  #science-sos .ss-chat-entry {
+    flex-wrap: wrap;
+  }
+  #science-sos .ss-student-tabs {
+    flex-wrap: wrap;
+  }
+  #science-sos .ss-chat-compose-row {
+    align-items: start;
+  }
+  #science-sos .ss-chat-starters button {
+    min-height: 44px;
+  }
+}
+
+#science-sos {
+  --ss-mint: light-dark(#147769, #9de1d1);
+  --ss-mint-bg: light-dark(#e5f5ef, #203d39);
+}
+#science-sos .ss-logo {
+  background: linear-gradient(145deg, var(--ss-teal), var(--ss-mint));
+  color: light-dark(#fff, #18253b);
+}
+#science-sos .ss-eyebrow {
+  color: var(--ss-mint);
+}
+#science-sos .ss-top {
+  border-top: 4px solid var(--ss-teal);
+}
+#science-sos .ss-feedback {
+  margin-top: 20px;
+  padding: 19px;
+  background: var(--ss-mint-bg);
+  border: 1px solid var(--ss-line);
+  border-radius: 14px;
+}
+#science-sos .ss-feedback h3 {
+  color: var(--ss-mint);
+  margin-bottom: 5px;
+}
+#science-sos .ss-feedback textarea {
+  margin: 12px 0 9px;
+  min-height: 100px;
+}
+#science-sos .ss-feedback-card {
+  padding: 20px;
+  background: var(--ss-paper);
+  border: 1px solid var(--ss-line);
+  border-left: 4px solid var(--ss-mint);
+  border-radius: 12px;
+  margin-top: 14px;
+}
+#science-sos .ss-feedback-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 13px 0;
+  line-height: 1.9;
+}
+#science-sos .ss-unread {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ss-teal);
+  color: var(--ss-paper);
+  border-radius: 12px;
+  padding: 1px 6px;
+  font-size: 10px;
+  min-width: 18px;
+  margin-left: 4px;
+}
+#science-sos .ss-file-item {
+  padding: 13px;
+  border: 1px solid var(--ss-line);
+  border-radius: 10px;
+  background: var(--ss-paper);
+  margin: 10px 0;
+}
+#science-sos .ss-file-item strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+#science-sos .ss-file-item textarea {
+  font-size: 13px;
+  margin-top: 8px;
+  min-height: 80px;
+}
+#science-sos .ss-file-item label {
+  margin-top: 8px;
+}
+#science-sos .ss-student-tabs {
+  flex-wrap: wrap;
+}
+#science-sos .ss-student-switch {
+  align-items: flex-start;
+}
+#science-sos .ss-received-hint {
+  color: var(--ss-mint);
+  font-size: 12px;
+}
+
+#science-sos .ss-community-hero {
+  padding: 22px;
+  border-radius: 16px;
+  background: var(--ss-mint-bg);
+  margin-bottom: 18px;
+}
+#science-sos .ss-community-hero h1 {
+  font-size: 25px;
+}
+#science-sos .ss-community-hero p {
+  color: var(--ss-muted);
+  font-size: 13px;
+  margin-top: 8px;
+}
+#science-sos .ss-community-layout {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.75fr) minmax(0, 1.5fr);
+  gap: 15px;
+  align-items: start;
+}
+#science-sos .ss-topics {
+  display: grid;
+  gap: 9px;
+}
+#science-sos .ss-topic {
+  width: 100%;
+  text-align: left;
+  padding: 15px;
+  border: 1px solid var(--ss-line);
+  background: var(--ss-paper);
+  color: var(--ss-ink);
+  border-radius: 12px;
+}
+#science-sos .ss-topic[aria-pressed="true"] {
+  border-color: var(--ss-teal);
+  background: var(--ss-tint);
+}
+#science-sos .ss-topic strong {
+  display: block;
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+#science-sos .ss-topic small {
+  color: var(--ss-muted);
+}
+#science-sos .ss-thread-post {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--ss-line);
+}
+#science-sos .ss-thread-post:last-child {
+  border-bottom: 0;
+}
+#science-sos .ss-thread-post p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 10px 0;
+  font-size: 14px;
+  line-height: 1.9;
+}
+#science-sos .ss-thread-reply {
+  margin: 12px 0 0 15px;
+  border-left: 2px solid var(--ss-line);
+  padding: 10px 12px;
+  background: var(--ss-soft);
+  border-radius: 0 8px 8px 0;
+}
+#science-sos .ss-thread-reply p {
+  font-size: 13px;
+}
+#science-sos .ss-thread-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+#science-sos .ss-thread-actions button {
+  font-size: 11px;
+  padding: 6px 9px;
+  border: 1px solid var(--ss-line);
+  background: var(--ss-paper);
+  color: var(--ss-muted);
+  border-radius: 7px;
+}
+#science-sos .ss-thread-actions button[aria-pressed="true"] {
+  color: var(--ss-teal);
+  border-color: var(--ss-teal);
+  background: var(--ss-tint);
+}
+#science-sos .ss-community-compose {
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid var(--ss-line);
+}
+#science-sos .ss-community-compose textarea {
+  margin: 8px 0 10px;
+}
+#science-sos .ss-new-topic {
+  padding: 14px;
+  border: 1px dashed var(--ss-line);
+  border-radius: 10px;
+  background: var(--ss-paper);
+}
+#science-sos .ss-new-topic summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ss-teal);
+}
+#science-sos .ss-new-topic input {
+  margin: 10px 0;
+}
+#science-sos .ss-identity-note {
+  font-size: 12px;
+  color: var(--ss-muted);
+  padding: 11px 14px;
+  background: var(--ss-soft);
+  border-radius: 8px;
+  margin-bottom: 17px;
+}
+#science-sos .ss-identity-note strong {
+  color: var(--ss-ink);
+}
+@media (max-width: 600px) {
+  #science-sos .ss-community-layout {
+    grid-template-columns: 1fr;
+  }
+  #science-sos .ss-topics {
+    grid-template-columns: 1fr 1fr;
+  }
+  #science-sos .ss-new-topic {
+    grid-column: 1/-1;
+  }
+  #science-sos .ss-thread-actions button {
+    min-height: 44px;
+  }
+}
+
+#science-sos .ss-board-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+#science-sos .ss-board-privacy {
+  font-size: 11px;
+  color: var(--ss-muted);
+  margin-bottom: 23px;
+}
+#science-sos .ss-board {
+  background: var(--ss-paper);
+  border: 1px solid var(--ss-line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+#science-sos .ss-board-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 145px auto;
+  gap: 12px;
+  align-items: end;
+  padding: 19px;
+  border-bottom: 1px solid var(--ss-line);
+}
+#science-sos .ss-search-row {
+  display: flex;
+  gap: 7px;
+}
+#science-sos .ss-search-row input {
+  min-width: 0;
+}
+#science-sos .ss-board-toolbar .ss-button {
+  white-space: nowrap;
+  padding: 10px 12px;
+}
+#science-sos .ss-board-create {
+  padding: 20px;
+  background: var(--ss-soft);
+  border-bottom: 1px solid var(--ss-line);
+}
+#science-sos .ss-board-list-head {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 20px;
+  font-size: 11px;
+  color: var(--ss-muted);
+  background: var(--ss-soft);
+}
+#science-sos .ss-board-topic-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  text-align: left;
+  padding: 21px;
+  background: var(--ss-paper);
+  color: var(--ss-ink);
+  border: 0;
+  border-bottom: 1px solid var(--ss-line);
+}
+#science-sos .ss-board-topic-row:hover {
+  background: var(--ss-soft);
+}
+#science-sos .ss-topic-row-content {
+  min-width: 0;
+  flex: 1;
+}
+#science-sos .ss-topic-row-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--ss-teal);
+  margin-bottom: 6px;
+}
+#science-sos .ss-topic-row-content > strong {
+  display: block;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+#science-sos .ss-topic-row-content > p {
+  font-size: 12px;
+  color: var(--ss-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 7px;
+}
+#science-sos .ss-topic-row-count {
+  text-align: center;
+  min-width: 32px;
+}
+#science-sos .ss-topic-row-count strong {
+  display: block;
+  font-size: 20px;
+  font-weight: 500;
+}
+#science-sos .ss-topic-row-count span {
+  font-size: 11px;
+  color: var(--ss-muted);
+}
+#science-sos .ss-topic-row-arrow {
+  color: var(--ss-muted);
+}
+#science-sos .ss-board-pagination {
+  padding: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  font-size: 12px;
+}
+#science-sos .ss-board-back {
+  background: none;
+  border: 0;
+  padding: 0 0 13px;
+  color: var(--ss-teal);
+  font-size: 13px;
+}
+#science-sos .ss-topic-detail-head {
+  padding: 23px;
+}
+#science-sos .ss-topic-detail-head h2 {
+  font-size: 23px;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+#science-sos .ss-board-answer-tabs {
+  display: flex;
+  gap: 15px;
+  padding: 0 23px;
+  border-bottom: 1px solid var(--ss-line);
+  flex-wrap: wrap;
+}
+#science-sos .ss-board-answer-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--ss-muted);
+  padding: 12px 0;
+  font-size: 12px;
+}
+#science-sos .ss-board-answer-tabs button[aria-pressed="true"] {
+  color: var(--ss-teal);
+  border-bottom-color: var(--ss-teal);
+  font-weight: 600;
+}
+#science-sos .ss-board-answers {
+  padding: 0 23px;
+}
+#science-sos .ss-board-answer {
+  padding: 22px 0;
+  border-bottom: 1px solid var(--ss-line);
+}
+#science-sos .ss-board-answer:last-child {
+  border-bottom: 0;
+}
+#science-sos .ss-board-answer-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.9;
+  margin: 14px 0 !important;
+}
+#science-sos .ss-board-replies {
+  margin-top: 13px;
+}
+#science-sos .ss-board-replies summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ss-teal);
+}
+#science-sos .ss-board-composer {
+  padding: 20px 23px;
+  background: var(--ss-soft);
+  border-top: 1px solid var(--ss-line);
+}
+#science-sos .ss-board-composer textarea {
+  margin: 9px 0;
+  min-height: 95px;
+}
+#science-sos .ss-composer-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+#science-sos .ss-composer-bottom span {
+  font-size: 11px;
+  color: var(--ss-muted);
+}
+#science-sos .ss-reply-context {
+  font-size: 12px;
+  color: var(--ss-muted);
+  padding: 10px;
+  border-left: 2px solid var(--ss-teal);
+  overflow-wrap: anywhere;
+}
+#science-sos .ss-reply-context button {
+  padding: 4px 8px;
+  margin-top: 5px;
+}
+@media (max-width: 700px) {
+  #science-sos .ss-board-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  #science-sos .ss-board-search {
+    grid-column: 1/-1;
+  }
+  #science-sos .ss-board-heading {
+    align-items: start;
+  }
+  #science-sos .ss-board-heading h1 {
+    font-size: 23px;
+  }
+}
+@media (max-width: 440px) {
+  #science-sos .ss-board-topic-row {
+    gap: 12px;
+    padding: 16px;
+  }
+  #science-sos .ss-topic-row-arrow {
+    display: none;
+  }
+  #science-sos .ss-board-answers {
+    padding: 0 16px;
+  }
+  #science-sos .ss-topic-detail-head,
+  #science-sos .ss-board-composer {
+    padding: 18px 16px;
+  }
+  #science-sos .ss-board-answer-tabs {
+    gap: 12px;
+    padding: 0 16px;
+  }
+  #science-sos .ss-composer-bottom {
+    align-items: flex-end;
+  }
+  #science-sos .ss-board-heading {
+    flex-wrap: wrap;
+  }
+}
+#science-sos .ss-feedback-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 17px 20px;
+  margin-bottom: 20px;
+  border: 1px solid var(--ss-teal);
+  border-radius: 12px;
+  background: var(--ss-tint);
+}
+#science-sos .ss-feedback-alert p {
+  font-size: 12px;
+  color: var(--ss-muted);
+  margin-top: 5px;
+}
+#science-sos .ss-student-tabs [data-page="feedback"] {
+  font-weight: 650;
+  color: var(--ss-teal);
+}
+@media (max-width: 500px) {
+  #science-sos .ss-feedback-alert {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+#science-sos .ss-stats-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+#science-sos .ss-stats-summary > div {
+  padding: 18px;
+  background: var(--ss-paper);
+  border: 1px solid var(--ss-line);
+  border-radius: 12px;
+}
+#science-sos .ss-stats-summary span {
+  font-size: 12px;
+  color: var(--ss-muted);
+}
+#science-sos .ss-stats-summary strong {
+  display: block;
+  font-size: 30px;
+  letter-spacing: -1px;
+  margin: 7px 0;
+}
+#science-sos .ss-stats-summary small {
+  font-size: 12px;
+  letter-spacing: 0;
+  margin-left: 5px;
+  font-weight: 500;
+}
+#science-sos .ss-stats-summary p {
+  font-size: 11px;
+  color: var(--ss-muted);
+}
+#science-sos .ss-correct {
+  color: var(--ss-mint);
+}
+#science-sos .ss-wrong {
+  color: var(--ss-amber);
+}
+#science-sos .ss-stats-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+#science-sos .ss-distribution {
+  display: grid;
+  gap: 14px;
+  margin: 22px 0;
+}
+#science-sos .ss-distribution-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 10px;
+  text-align: left;
+  border: 0;
+  padding: 5px 0;
+  background: none;
+  color: var(--ss-ink);
+}
+#science-sos .ss-distribution-row[aria-pressed="true"] {
+  outline: 2px solid var(--ss-teal);
+  outline-offset: 5px;
+  border-radius: 3px;
+}
+#science-sos .ss-distribution-title {
+  font-size: 12px;
+}
+#science-sos .ss-distribution-title small {
+  color: var(--ss-mint);
+  font-size: 10px;
+}
+#science-sos .ss-distribution-track {
+  grid-column: 1;
+  grid-row: 2;
+  height: 12px;
+  background: var(--ss-soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+#science-sos .ss-distribution-track > span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+#science-sos .ss-distribution-value {
+  grid-column: 2;
+  grid-row: 1/3;
+  align-self: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+#science-sos .ss-distribution-value small {
+  color: var(--ss-muted);
+  font-weight: 400;
+  font-size: 11px;
+  display: inline-block;
+  min-width: 29px;
+  text-align: right;
+}
+#science-sos .ss-reason-groups {
+  margin: 17px 0;
+}
+#science-sos .ss-reason-groups > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ss-line);
+  font-size: 12px;
+}
+#science-sos .ss-reason-groups span {
+  white-space: nowrap;
+  color: var(--ss-teal);
+}
+#science-sos .ss-stats-insight {
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--ss-tint);
+  font-size: 12px;
+}
+#science-sos .ss-stats-insight p {
+  margin-top: 8px;
+  line-height: 1.8;
+  color: var(--ss-muted);
+}
+#science-sos .ss-stats-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+  table-layout: fixed;
+}
+#science-sos .ss-stats-table th {
+  color: var(--ss-muted);
+  font-weight: 500;
+  background: var(--ss-soft);
+  padding: 11px 8px;
+}
+#science-sos .ss-stats-table td {
+  padding: 13px 8px;
+  border-bottom: 1px solid var(--ss-line);
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+#science-sos .ss-stats-table th:nth-child(1) {
+  width: 13%;
+}
+#science-sos .ss-stats-table th:nth-child(2) {
+  width: 23%;
+}
+#science-sos .ss-stats-table th:nth-child(4) {
+  width: 16%;
+}
+@media (max-width: 650px) {
+  #science-sos .ss-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  #science-sos .ss-stats-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  #science-sos .ss-stats-table th:nth-child(1) {
+    width: 17%;
+  }
+  #science-sos .ss-stats-table th:nth-child(2) {
+    width: 25%;
+  }
+  #science-sos .ss-stats-table th:nth-child(4) {
+    width: 20%;
+  }
+  #science-sos .ss-stats-table .ss-pill {
+    white-space: normal;
+    padding: 3px 5px;
+  }
+}
+#science-sos .ss-class-switch {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 15px;
+  padding: 16px;
+  background: var(--ss-paper);
+  border: 1px solid var(--ss-line);
+  border-radius: 12px;
+  margin-bottom: 22px;
+  align-items: center;
+}
+#science-sos .ss-class-switch strong {
+  display: block;
+  font-size: 14px;
+}
+#science-sos .ss-class-switch .ss-eyebrow {
+  font-size: 10px;
+}
+#science-sos .ss-lesson-context {
+  padding: 20px;
+  background: var(--ss-soft);
+  border-radius: 10px;
+  margin: 18px 0;
+}
+#science-sos .ss-lesson-context p {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+#science-sos .ss-work-tabs {
+  max-height: none;
+}
+@media (max-width: 500px) {
+  #science-sos .ss-class-switch {
+    grid-template-columns: 1fr;
+  }
+}
+#science-sos .ss-material-grid {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+}
+#science-sos .ss-material-row {
+  padding: 18px 0;
+}
+#science-sos .ss-material-row details {
+  margin-top: 12px;
+}
+#science-sos .ss-material-row textarea {
+  margin: 10px 0;
+  min-height: 110px;
+}
+#science-sos .ss-material-row .ss-pill {
+  margin-top: 9px;
+}
+#science-sos .ss-file-item {
+  padding: 12px;
+}
+#science-sos .ss-file-item textarea {
+  min-height: 65px;
+}
+#science-sos .ss-upload {
+  padding: 16px;
+}
+#science-sos .ss-material-grid .ss-panelhead {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+@media (max-width: 850px) {
+  #science-sos .ss-material-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Light academic portal theme: independent of operating-system appearance. */
+#science-sos {
+  color-scheme: light;
+  --ss-bg: #f5f7fa;
+  --ss-paper: #ffffff;
+  --ss-ink: #172b4d;
+  --ss-muted: #596b82;
+  --ss-line: #dce3ec;
+  --ss-soft: #f0f4f8;
+  --ss-teal: #173d79;
+  --ss-tint: #eef3fb;
+  --ss-mint: #214e86;
+  --ss-mint-bg: #eef4fa;
+  --ss-amber: #885b1e;
+  --ss-amber-bg: #fff4e2;
+  --ss-radius: 8px;
+  border-radius: 8px;
+}
+#science-sos .ss-top {
+  border-top: 5px solid #173d79;
+  padding: 22px 25px;
+  background: #fff;
+}
+#science-sos .ss-logo {
+  background: #173d79;
+  color: #fff;
+  border-radius: 6px;
+}
+#science-sos .ss-brand {
+  color: #173d79;
+  letter-spacing: -0.6px;
+}
+#science-sos .ss-subbrand {
+  color: #60728b;
+  letter-spacing: 1.8px;
+}
+#science-sos .ss-sidebar {
+  background: #fff;
+}
+#science-sos .ss-navitem {
+  background: #edf3fb;
+  border-left: 3px solid #173d79;
+  border-radius: 3px;
+}
+#science-sos .ss-class-switch {
+  background: #fff;
+  border-radius: 7px;
+}
+#science-sos .ss-work-tabs {
+  gap: 0;
+  border-bottom: 1px solid #cfd9e6;
+  padding-bottom: 0;
+}
+#science-sos .ss-work-tabs button {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  padding: 13px 17px;
+  color: #526681;
+}
+#science-sos .ss-work-tabs button[aria-pressed="true"] {
+  background: #fff;
+  border-color: #173d79;
+  color: #173d79;
+  font-weight: 700;
+}
+#science-sos .ss-panel,
+#science-sos .ss-board,
+#science-sos .ss-chat,
+#science-sos .ss-question,
+#science-sos .ss-feedback-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 7px #173d7905;
+}
+#science-sos h1 {
+  color: #152f58;
+  letter-spacing: -0.8px;
+}
+#science-sos .ss-eyebrow {
+  color: #355885;
+  letter-spacing: 1.3px;
+}
+#science-sos .ss-upload {
+  background: #f7f9fc;
+  border-color: #a8bad2;
+  border-radius: 6px;
+}
+#science-sos .ss-button.primary {
+  background: #173d79;
+  border-color: #173d79;
+  color: #fff;
+  border-radius: 6px;
+}
+#science-sos .ss-feedback,
+#science-sos .ss-community-hero {
+  background: #edf3fa;
+  border-radius: 8px;
+}
+#science-sos .ss-material-row details textarea {
+  background: #fafbfd;
+}
+#science-sos .ss-role {
+  background: #eef2f7;
+}
+#science-sos .ss-role button[aria-pressed="true"] {
+  background: #173d79;
+  color: #fff;
+  box-shadow: none;
+}
+#science-sos .ss-footer {
+  background: #fff;
+  color: #62728a;
+}

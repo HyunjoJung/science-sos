@@ -165,4 +165,4 @@ await writeFile(
     2,
   ),
 );
-for (const c of clients) await c.auth.signOut();
+for (const c of clients) await c.auth.signOut({ scope: "local" });
