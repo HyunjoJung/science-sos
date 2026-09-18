@@ -572,7 +572,7 @@ export function Chats({
                     <div className="ss-message-label">
                       과학SOS ·{" "}
                       {c.status === "sample"
-                        ? "준비된 예시 답변"
+                        ? "자료 답변"
                         : c.status === "ready"
                           ? "AI 답변"
                           : c.status === "error"

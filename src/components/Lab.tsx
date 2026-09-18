@@ -484,7 +484,7 @@ export function Teacher({
           <b>{r.experiment_id ? "검토한 가설" : "AI의 가설"}</b>
           <span className="tiny-pill">
             {r.analysis_mode === "sample"
-              ? "시연용 분석 예시"
+              ? "분석 참고"
               : r.analysis_mode === "live"
                 ? "실시간 분석"
                 : r.experiment_id

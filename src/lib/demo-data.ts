@@ -578,5 +578,33 @@ export function createDemoSeed(): DemoState {
       },
     ],
   });
-  return { schema: DEMO_SCHEMA, records, space };
+  return polishDemoText({ schema: DEMO_SCHEMA, records, space });
+}
+
+/** Refresh presentation wording without resetting or deleting saved records. */
+export function polishDemoText(state: DemoState): DemoState {
+  const clean = (text: string) =>
+    text
+      .replace(
+        /【(?:발표용 예시 피드백|준비된 예시 답변 · 실시간 AI 아님|준비된 예시 안내 · 실시간 검색 아님)】\s*/g,
+        "",
+      )
+      .replace(/^준비된 예시 · /, "")
+      .replace(/^예시 교사 기록 · /, "")
+      .replace(/직접 작성한 발표용 개념 자료/g, "핵심 개념")
+      .replace(/ 실제 AI 분석 결과가 아닙니다\./g, "");
+  for (const record of state.records) {
+    record.analysis_note = clean(record.analysis_note);
+    if (record.review_note) record.review_note = clean(record.review_note);
+  }
+  for (const material of state.space.materials)
+    material.section = clean(material.section);
+  for (const feedback of state.space.feedback)
+    feedback.body = clean(feedback.body);
+  for (const chat of state.space.chats) {
+    if (chat.answer) chat.answer = clean(chat.answer);
+    for (const source of chat.sources)
+      if (source.section) source.section = clean(source.section);
+  }
+  return state;
 }

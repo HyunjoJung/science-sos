@@ -77,7 +77,7 @@ describe("isolated presentation fixtures", () => {
     }
     for (const c of seed.space.chats) {
       expect(c.status).toBe("sample");
-      expect(c.answer).toContain("예시");
+      expect(c.answer?.length).toBeGreaterThan(20);
       for (const source of c.sources)
         if (source.quote) {
           const material = seed.space.materials.find(
@@ -214,7 +214,7 @@ describe("isolated presentation fixtures", () => {
     });
     const c = student().space.chats.find((c) => c.id === chat.id)!;
     expect(c.status).toBe("sample");
-    expect(c.answer).toContain("실시간 AI 아님");
+    expect(c.answer).toContain("수업 자료를 찾았어요");
     const source = c.sources[0];
     expect(
       student().space.materials.find((m) => m.title === source.title)?.content,
@@ -225,7 +225,7 @@ describe("isolated presentation fixtures", () => {
     });
     expect(
       student().space.chats.find((c) => c.id === external.id)?.answer,
-    ).toContain("새 외부 검색을 실행하지 않아요");
+    ).toContain("새 외부 검색은 실행하지 않아요");
   });
   it("supports materials, feedback read receipt and isolated role ownership", () => {
     const mat = demoSpaceAction("material_add", {
@@ -307,6 +307,28 @@ describe("isolated presentation fixtures", () => {
     resetDemo();
     expect(main().state).toBe("awaiting_review");
     expect(teacher().records).toHaveLength(192);
+  });
+  it("updates old wording without removing saved work or class data", () => {
+    approve();
+    const key = "science-sos:presentation-demo:v1";
+    const saved = JSON.parse(storage.get(key)!);
+    saved.records[0].initial_note = "내가 직접 남긴 질문을 유지해 주세요.";
+    saved.space.feedback[0].body =
+      "【발표용 예시 피드백】 조건을 잘 비교했어요.";
+    saved.space.chats[0].answer =
+      "【준비된 예시 답변 · 실시간 AI 아님】 밀도를 비교해요.";
+    storage.set(key, JSON.stringify(saved));
+    const updated = teacher();
+    expect(updated.records).toHaveLength(saved.records.length);
+    expect(updated.space.chats).toHaveLength(saved.space.chats.length);
+    expect(updated.space.feedback).toHaveLength(saved.space.feedback.length);
+    expect(updated.records[0].id).toBe(saved.records[0].id);
+    expect(updated.records[0].state).toBe("experiment_assigned");
+    expect(updated.records[0].initial_note).toBe(
+      "내가 직접 남긴 질문을 유지해 주세요.",
+    );
+    expect(updated.space.feedback[0].body).toBe("조건을 잘 비교했어요.");
+    expect(updated.space.chats[0].answer).toBe("밀도를 비교해요.");
   });
   it("keeps working in memory when browser storage runs out of space", () => {
     localStorage.setItem.mockImplementation(() => {

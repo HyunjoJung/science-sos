@@ -9,6 +9,7 @@ import {
 } from "./content";
 import {
   createDemoSeed,
+  polishDemoText,
   DEMO_SCHEMA,
   DEMO_TEACHER_ID,
   demoExperiments,
@@ -29,7 +30,7 @@ let memory: DemoState | null = null;
 let storageWriteFailed = false;
 const copy = <T>(value: T): T => structuredClone(value);
 function state(): DemoState {
-  if (storageWriteFailed && memory) return copy(memory);
+  if (storageWriteFailed && memory) return polishDemoText(copy(memory));
   if (typeof window !== "undefined") {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
@@ -48,14 +49,14 @@ function state(): DemoState {
             "members",
           ].every((key) => Array.isArray(parsed.space[key as keyof Space]))
         )
-          return parsed;
+          return polishDemoText(parsed);
       }
     } catch {
       /* A blocked browser storage still permits a session in memory. */
     }
   }
   if (!memory) memory = createDemoSeed();
-  return copy(memory);
+  return polishDemoText(copy(memory));
 }
 function save(next: DemoState) {
   memory = copy(next);
@@ -429,10 +430,10 @@ export function demoSpaceAction(
           : [];
       const answer =
         room === "external"
-          ? "【준비된 예시 안내 · 실시간 검색·AI 아님】 이 시연에서는 새 외부 검색을 실행하지 않아요. 이미 준비된 PhET·NASA 자료의 예시 질문을 살펴보거나, 선생님께 더 확인할 질문을 남겨 주세요."
+          ? "새 외부 검색은 실행하지 않아요. 등록된 PhET·NASA 자료를 살펴보거나, 선생님께 더 확인할 질문을 남겨 주세요."
           : match
-            ? `【자료 읽기 시연 · 실시간 AI 아님】 질문과 단어가 겹치는 등록 자료의 일부를 보여 드려요. 질문의 답이라고 자동 판단하지 않으니, 이 문장이 어떤 조건을 설명하는지 확인해 보세요.\n\n${quote}`
-            : "【준비된 예시 안내 · 실시간 AI 아님】 새 질문의 답변을 생성하지 않았어요. 수업 자료에 있는 핵심 단어로 다시 찾아보거나, 선생님께 질문의 조건을 확인해 주세요. 준비된 예시 질문에는 답변과 근거 문장이 함께 들어 있어요.";
+            ? `질문의 핵심 단어와 관련된 수업 자료를 찾았어요. 아래 문장이 어떤 조건을 설명하는지 확인해 보세요.\n\n${quote}`
+            : "관련 수업 자료를 찾지 못했어요. 핵심 단어를 바꾸어 찾아보거나 선생님께 질문의 조건을 확인해 주세요.";
       s.space.chats.push({
         id: resultId,
         student_id: actor.id,

@@ -179,7 +179,7 @@ export default function Workspace({
       setToast(
         action === "chat_send"
           ? demo
-            ? "준비된 예시 답변을 표시했어요."
+            ? "자료 답변을 표시했어요."
             : "질문을 보냈어요. 답변이 도착하면 여기에 표시돼요."
           : "저장했어요.",
       );
@@ -228,8 +228,8 @@ export default function Workspace({
       {demo && (
         <div className="ss-demo-bar">
           <div>
-            <strong>발표용 예시 교실</strong>
-            <p>가상 학생·준비된 분석 예시 · 이 브라우저에만 저장됩니다.</p>
+            <strong>발표 교실</strong>
+            <p>가상 학급 · 분석과 답변은 사전 작성된 자료입니다.</p>
           </div>
           <fieldset className="ss-demo-controls" disabled={busy || !demoEngine}>
             <button
@@ -429,6 +429,9 @@ export default function Workspace({
                     수업에 들어가기 →
                   </button>
                 </form>
+                <a className="ss-button ss-wide ss-spaced" href="/demo">
+                  발표 교실 둘러보기 →
+                </a>
                 {!configured && (
                   <p className="ss-error">
                     수업 데이터베이스 연결이 필요합니다.
@@ -640,7 +643,7 @@ export default function Workspace({
                               <span>{hypotheses[r.hypothesis]}</span>
                               <span>
                                 {r.analysis_mode === "sample"
-                                  ? "분석 예시"
+                                  ? "분석 참고"
                                   : r.analysis_mode === "live"
                                     ? "AI 제안"
                                     : r.experiment_id
@@ -988,7 +991,7 @@ function Review({
           <div className="ss-ai">
             <span className="ss-pill teal">
               {r.analysis_mode === "sample"
-                ? "시연용 분석 예시"
+                ? "분석 참고"
                 : r.analysis_mode === "live"
                   ? "AI 제안 · 실제 분석"
                   : r.experiment_id
