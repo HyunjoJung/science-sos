@@ -1,0 +1,88 @@
+name: Assemble and verify connected learning
+on:
+  push:
+    branches: [build/learning-connected-20260920]
+permissions:
+  contents: write
+concurrency:
+  group: assemble-learning-connected
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.repository == 'HyunjoJung/science-sos'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: learning_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/learning_test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify source transport
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, lzma, pathlib
+          chunks = [pathlib.Path(f'.learning-build/part-{i:02d}').read_bytes() for i in range(1, 9)]
+          data = lzma.decompress(b''.join(chunks))
+          assert hashlib.sha256(data).hexdigest() == 'f17209c4596bb37c0c9f86539b764ea23906eb8e86d006550b0857ff8af7e2cf'
+          source = json.loads(data)
+          assert len(source) == 36
+          for name, text in source.items():
+              path = pathlib.PurePosixPath(name)
+              assert not path.is_absolute() and '..' not in path.parts and '.git' not in path.parts
+              assert isinstance(text, str)
+          pathlib.Path('/tmp/learning-source.json').write_bytes(data)
+          print('Verified source overlay: 36 files')
+          PY
+      - name: Publish source-only feature branch (not main, not a release)
+        shell: bash
+        run: |
+          git checkout --detach c5d1baa2648500e76dbc0978843445e1553ecda1
+          python3 - <<'PY'
+          import json, pathlib, subprocess
+          source = json.loads(pathlib.Path('/tmp/learning-source.json').read_text())
+          for name, text in source.items():
+              path = pathlib.Path(name)
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(text, encoding='utf-8')
+          # The connector will publish the read-only CI workflow separately.
+          # Do not ask the Actions token to change workflow permissions/files.
+          paths = [name for name in source if not name.startswith('.github/workflows/')]
+          subprocess.run(['git', 'add', '--'] + paths, check=True)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: connect multi-subject learning UI, transactional RPCs and durable AI worker'
+          git push origin HEAD:refs/heads/feature/learning-connected
+          git rev-parse HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --global pnpm@10.33.2
+      - run: pnpm install --frozen-lockfile
+      - name: Install pinned Chromium integration runner
+        run: |
+          npm install --prefix "$RUNNER_TEMP/learning-browser" playwright@1.55.0
+          node "$RUNNER_TEMP/learning-browser/node_modules/playwright/cli.js" install --with-deps chromium
+          echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/learning-browser/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Build, PostgreSQL integration and two-subject browser journeys
+        run: bash scripts/integration/verify-learning.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: connected-learning-evidence
+          include-hidden-files: true
+          path: |
+            .test-results/
+            learning-student.png
+            learning-teacher.png
