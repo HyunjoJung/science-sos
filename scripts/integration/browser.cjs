@@ -1,5 +1,6 @@
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE);
 const assert=require('node:assert/strict');
+const fs=require('node:fs/promises');
 (async()=>{
  const browser=await chromium.launch({headless:true});
  const teacher=await browser.newPage();const student=await browser.newPage();
@@ -14,6 +15,14 @@ const assert=require('node:assert/strict');
    await student.getByRole('button',{name:'다시 불러오기',exact:true}).click();
    const task=student.locator('details').filter({has:student.locator('summary').filter({hasText:subject})}).first();
    await task.locator('summary').click();await task.getByLabel('내 답',{exact:true}).selectOption(answer);await task.getByLabel('그렇게 생각한 이유',{exact:true}).fill('같은 전체와 조건을 비교해서 설명했어요.');await task.getByRole('button',{name:'내 생각 보내기',exact:true}).click();
+   // Prove the connected worker consumed and persisted the queued job before
+   // human review cancels outstanding work. Auth/model are CI fixtures only.
+   await teacher.waitForFunction(async title=>{
+    const home=await(await fetch('/api/learning')).json();
+    const view=await(await fetch('/api/learning?course='+home.courses[0].id)).json();
+    const attempt=view.attempts.find(a=>a.title===title);
+    return attempt?.job?.status==='succeeded' && attempt.analysis?.model==='ci-fixture';
+   },subject,{timeout:30000,polling:500});
    await stage(teacher,subject+' · 교사 확인 대기');
    await teacher.getByLabel('검토 의견 / 학생에게 보낼 질문',{exact:true}).fill('조건을 활동으로 다시 비교해 주세요.');await teacher.getByRole('button',{name:'활동 배정',exact:true}).click();
    await stage(student,subject+' · 확인 활동');await student.getByLabel('활동에서 확인한 내용',{exact:true}).fill('바뀐 조건과 같게 둔 조건을 비교했습니다.');await student.getByLabel('다시 설명한 내 생각',{exact:true}).fill('조건에 따라 결과가 달라지는 이유를 설명했어요.');await student.getByRole('button',{name:'활동 기록 저장',exact:true}).click();
@@ -27,5 +36,15 @@ const assert=require('node:assert/strict');
   await student.screenshot({path:'learning-student.png',fullPage:true});await teacher.screenshot({path:'learning-teacher.png',fullPage:true});
   await student.getByRole('button',{name:'로그아웃',exact:true}).click();await student.getByRole('button',{name:'로그인',exact:true}).waitFor();assert.equal(await student.locator('article').count(),0);
   assert.deepEqual(browserErrors,[]);console.log('PASS browser: role-filtered response, logout data clearing, no page errors.');
+ }catch(error){
+  // Isolated CI accounts contain synthetic data; never enable this capture on live students.
+  await fs.mkdir('.test-results',{recursive:true});
+  for(const [name,page] of [['teacher',teacher],['student',student]]){
+   await page.screenshot({path:`.test-results/${name}-failure.png`,fullPage:true}).catch(()=>{});
+   await fs.writeFile(`.test-results/${name}-failure.html`,await page.content()).catch(()=>{});
+   console.error('CI fixture DOM',name,await page.locator('body').innerText());
+  }
+  console.error('Browser page errors:',browserErrors);
+  throw error;
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
