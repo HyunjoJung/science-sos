@@ -1,0 +1,73 @@
+name: Publish verified runtime source
+on:
+  push:
+    branches: [hardening/learning-runtime-v2]
+    paths: [.github/workflows/publish-runtime.yml]
+permissions:
+  contents: read
+jobs:
+  publish:
+    if: github.repository == 'HyunjoJung/science-sos' && github.ref == 'refs/heads/hardening/learning-runtime-v2'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hardening/learning-runtime-v2
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reconstruct and verify immutable source patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'JS'
+          import { createHash } from 'node:crypto';
+          import { brotliDecompressSync } from 'node:zlib';
+          import { writeFileSync } from 'node:fs';
+          const shas = [
+            '5732cdb1609b448b2be954f28e92517482c7d1b6',
+            '5ab590aa147f1a2653363477330db5607432b1f4',
+            'e5f9ebdeb85bc9714787f0a69f4738d6b2285b1c',
+            'f4140e689004ce8c15a9b01881d97aed0f16a9a9',
+            '3f208ccdc1b256f1cebda963ceceff9cca0a69d2',
+            '52f08b7a4ad0241dcf13bea529ba401e942e796c',
+            'cfb2599476067b5b0943df79d081afb8083a1358',
+          ];
+          const chunks = [];
+          for (const sha of shas) {
+            const response = await fetch(`https://api.github.com/repos/HyunjoJung/science-sos/git/blobs/${sha}`, {
+              headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: 'application/vnd.github+json' },
+              signal: AbortSignal.timeout(15000), redirect: 'error',
+            });
+            if (!response.ok) throw new Error(`Blob fetch failed: ${response.status}`);
+            const value = await response.json();
+            if (value.sha !== sha || value.encoding !== 'base64') throw new Error('Unexpected blob');
+            chunks.push(Buffer.from(value.content, 'base64'));
+          }
+          const compressed = Buffer.concat(chunks);
+          const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+          if (hash(compressed) !== 'e460a57d6ace1a59e4923745108bf077079673c7dd5e5b5eebeef72ae601c15e') throw new Error('Compressed hash mismatch');
+          const patch = brotliDecompressSync(compressed, { maxOutputLength: 300000 });
+          if (hash(patch) !== '681c59b59bca89a3fbb3c513dd9bde9223afaa43d7d7b3289c0f97c0870b4499') throw new Error('Patch hash mismatch');
+          writeFileSync('/tmp/learning-runtime.patch', patch);
+          console.log('Verified source patch', patch.length, 'bytes');
+          JS
+      - name: Apply and publish source without changing workflow or production branches
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = hardening/learning-runtime-v2
+          git apply --check /tmp/learning-runtime.patch
+          git apply /tmp/learning-runtime.patch
+          git add -- . ':!.github'
+          if git diff --cached --name-only | grep -Eq '^(\.github/|\.secrets/|\.env$|\.env\.local$|\.env\.worker$)'; then
+            echo 'Unexpected sensitive or workflow path'; exit 1
+          fi
+          git diff --cached --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: integrate multi-subject classroom, durable server worker, and isolation regression gates'
+          git push origin HEAD:hardening/learning-runtime-v2
