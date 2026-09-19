@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createLatestRequest, createMutationClient, getJson } from '@/lib/runtime/client.mjs';
 
 type Course={id:string;title:string;role:'teacher'|'student'};
@@ -120,9 +120,10 @@ function PackReview({pack:p,busy,assigned,activate}:{pack:Pack;busy:boolean;assi
 }
 function AnswerForm({item,busy,label,onSend}:{item:Item;busy:boolean;label:string;onSend:(d:Record<string,unknown>)=>Promise<boolean>}){
  const [answer,setAnswer]=useState(''),[reason,setReason]=useState('');
+ const answerId=useId(),reasonId=useId();
  return <form onSubmit={async e=>{e.preventDefault();if(await onSend({answer,reason})){setAnswer('');setReason('');}}}><p>{item.prompt}</p>
-  <label>내 답<select required value={answer} onChange={e=>setAnswer(e.target.value)}><option value="">선택하세요</option>{item.choices.map(c=><option key={c} value={c}>{c}</option>)}</select></label>
-  <label>그렇게 생각한 이유<textarea required maxLength={2000} value={reason} onChange={e=>setReason(e.target.value)}/></label>
+  <label htmlFor={answerId}>내 답</label><select id={answerId} required value={answer} onChange={e=>setAnswer(e.target.value)}><option value="">선택하세요</option>{item.choices.map(c=><option key={c} value={c}>{c}</option>)}</select>
+  <label htmlFor={reasonId}>그렇게 생각한 이유</label><textarea id={reasonId} required maxLength={2000} value={reason} onChange={e=>setReason(e.target.value)}/>
   <button disabled={busy||!answer||!reason.trim()}>{label}</button></form>;
 }
 function ActivityView({activity:a}:{activity:Activity}){
