@@ -1,0 +1,31 @@
+name: Isolated workspace export
+on:
+  push:
+    branches: [hardening/learning-runtime-v2]
+    paths: [.github/workflows/workspace-export.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --global pnpm@10.33.2
+      - run: pnpm install --frozen-lockfile
+      - name: Export source and installed dependencies without Git metadata or credentials
+        run: |
+          mkdir -p /tmp/science-export
+          git archive HEAD | gzip > /tmp/science-export/source.tar.gz
+          tar -czf /tmp/science-export/dependencies.tar.gz node_modules
+          git rev-parse HEAD > /tmp/science-export/commit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: isolated-science-workspace
+          path: /tmp/science-export
+          retention-days: 1
