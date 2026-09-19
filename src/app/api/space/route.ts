@@ -1,53 +1,52 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { configured, db } from "@/lib/supabase";
-import { z } from "zod";
 import answers from "@/lib/server/answers.json";
-import {
-  ApiError, assertSameOrigin, authError, errorReply, jsonReply, readJsonObject, rpcError,
-} from "@/lib/server/api-http";
+import { spaceCommand } from "@/lib/runtime/commands.mjs";
+import { AppError, publicFailure, readJson, requireOrigin, rpcError } from "@/lib/runtime/http.mjs";
 
+const reply = (data: unknown, status = 200, headers: Record<string, string> = {}) =>
+  NextResponse.json(data, { status, headers: { "Cache-Control": "private, no-store", ...headers } });
 function failure(error: unknown, requestId: string) {
-  return errorReply(error instanceof z.ZodError ? new ApiError("INVALID_INPUT") : error, requestId);
+  const result = publicFailure(error, requestId);
+  if (result.status >= 500) console.error("space_request_failed", { requestId, code: result.body.code });
+  return reply(result.body, result.status, { ...result.headers, "X-Request-Id": requestId });
+}
+async function session() {
+  if (!configured()) throw new AppError("not_configured", 503, "수업 저장소 연결이 준비되지 않았어요.");
+  const s = await db();
+  const { data: { user }, error } = await s.auth.getUser();
+  if (error && error.status && error.status >= 500)
+    throw new AppError("auth_unavailable", 503, "로그인 정보를 확인하지 못했어요.");
+  if (!user) throw new AppError("unauthorized", 401, "로그인해 주세요.");
+  return { s, user };
 }
 
 export async function GET() {
   const requestId = crypto.randomUUID();
   try {
-    if (!configured()) throw new ApiError("NOT_CONFIGURED");
-    const s = await db();
-    const { data: { user }, error: authFailure } = await s.auth.getUser();
-    if (authFailure) throw authError(authFailure);
-    if (!user) throw new ApiError("UNAUTHORIZED");
+    const { s, user } = await session();
     const { data, error } = await s.rpc("lab_space");
     if (error) throw rpcError(error);
-    if (!data || typeof data !== "object" || Array.isArray(data)) throw new ApiError("UNAVAILABLE");
-    const { data: member, error: memberError } = await s.from("lab_members")
-      .select("role").eq("user_id", user.id).single();
+    if (!data || typeof data !== "object" || Array.isArray(data))
+      throw new AppError("invalid_response", 502, "수업 정보를 불러오지 못했어요.");
+    const { data: member, error: memberError } = await s.from("lab_members").select("role").eq("user_id", user.id).single();
     if (memberError) throw rpcError(memberError);
-    if (!member || !["teacher", "student"].includes(member.role)) throw new ApiError("FORBIDDEN");
-    return jsonReply({ ...data, answers: member.role === "teacher" ? answers : undefined }, requestId);
+    if (!member) throw new AppError("forbidden", 403, "수업에 등록된 계정으로 로그인해 주세요.");
+    return reply({ ...data, member_id: user.id, answers: member.role === "teacher" ? answers : undefined });
   } catch (error) { return failure(error, requestId); }
 }
 
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID();
   try {
-    if (!configured()) throw new ApiError("NOT_CONFIGURED");
-    assertSameOrigin(req, process.env.APP_ORIGIN);
-    const body = await readJsonObject(req, 256 * 1024);
-    const s = await db();
-    const { data: { user }, error: authFailure } = await s.auth.getUser();
-    if (authFailure) throw authError(authFailure);
-    if (!user) throw new ApiError("UNAUTHORIZED");
-    const value = z.object({
-      action: z.enum(["material_add", "material_edit", "feedback_send", "feedback_read", "chat_send", "topic_add", "post_add", "like_toggle"]),
-      id: z.uuid().nullable(), request: z.uuid(), data: z.record(z.string(), z.unknown()),
-    }).parse(body);
+    requireOrigin(req, req.nextUrl.origin, process.env.APP_ORIGIN);
+    const { s } = await session();
+    const v = spaceCommand(await readJson(req));
     const { data, error } = await s.rpc("lab_space_act", {
-      p_action: value.action, p_id: value.id, p_data: value.data, p_request: value.request,
+      p_action: v.action, p_id: v.id, p_data: v.data, p_request: v.request,
     });
     if (error) throw rpcError(error);
-    if (typeof data !== "string") throw new ApiError("UNAVAILABLE");
-    return jsonReply({ id: data }, requestId);
+    if (typeof data !== "string") throw new AppError("save_unconfirmed", 502, "저장 결과를 확인하지 못했어요.");
+    return reply({ id: data });
   } catch (error) { return failure(error, requestId); }
 }

@@ -1,94 +1,91 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { configured, db } from "@/lib/supabase";
 import { z } from "zod";
 import { items } from "@/lib/content";
-import { reasonSchema } from "@/lib/analysis";
-import {
-  ApiError, assertSameOrigin, authError, errorReply, jsonReply, readJsonObject, rpcError,
-} from "@/lib/server/api-http";
+import { labCommand, uuid } from "@/lib/runtime/commands.mjs";
+import { AppError, object, publicFailure, readJson, requireOrigin, rpcError } from "@/lib/runtime/http.mjs";
 
+const response = (value: unknown, status = 200, headers: Record<string, string> = {}) =>
+  NextResponse.json(value, { status, headers: { "Cache-Control": "private, no-store", ...headers } });
 function failure(error: unknown, requestId: string) {
-  return errorReply(error instanceof z.ZodError ? new ApiError("INVALID_INPUT") : error, requestId);
+  const result = publicFailure(error, requestId);
+  if (result.status >= 500) console.error("lab_request_failed", { requestId, code: result.body.code });
+  return response(result.body, result.status, { ...result.headers, "X-Request-Id": requestId });
+}
+function ready() {
+  if (!configured()) throw new AppError("not_configured", 503, "데이터베이스 연결이 준비되지 않았어요.");
 }
 
 export async function GET(req: NextRequest) {
   const requestId = crypto.randomUUID();
   try {
-    if (!configured()) throw new ApiError("NOT_CONFIGURED");
+    ready();
     const s = await db();
-    const { data: { user }, error: authFailure } = await s.auth.getUser();
-    if (authFailure) {
-      const error = authError(authFailure);
-      if (error.code !== "UNAUTHORIZED") throw error;
-      return jsonReply({ member: null, records: [] }, requestId);
-    }
-    if (!user) return jsonReply({ member: null, records: [] }, requestId);
+    const { data: { user }, error: authError } = await s.auth.getUser();
+    if (authError && authError.status && authError.status >= 500)
+      throw new AppError("auth_unavailable", 503, "로그인 정보를 확인하지 못했어요.");
+    if (!user) return response({ member: null, records: [] });
     const id = req.nextUrl.searchParams.get("experiment");
-    if (id !== null) z.uuid().parse(id);
-    const { data, error } = await (id
-      ? s.rpc("lab_experiment", { p_id: id })
-      : s.rpc("lab_list"));
+    if (id !== null) uuid(id);
+    const { data, error } = await (id ? s.rpc("lab_experiment", { p_id: id }) : s.rpc("lab_list"));
     if (error) throw rpcError(error);
-    if (data === null) throw new ApiError("UNAVAILABLE");
-    return jsonReply(data, requestId);
+    if (data === null) throw new AppError("invalid_response", 502, "기록을 불러오지 못했어요.");
+    return response(data);
   } catch (error) { return failure(error, requestId); }
 }
 
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID();
   try {
-    if (!configured()) throw new ApiError("NOT_CONFIGURED");
-    assertSameOrigin(req, process.env.APP_ORIGIN);
-    const body = await readJsonObject(req, 16 * 1024);
+    ready();
+    requireOrigin(req, req.nextUrl.origin, process.env.APP_ORIGIN);
+    const body = object(await readJson(req));
     const s = await db();
     if (body.action === "login") {
-      const value = z.object({ email: z.email(), password: z.string().min(1).max(200) }).parse(body.data);
-      const { error } = await s.auth.signInWithPassword(value);
+      const parsed = z.object({ email: z.email().max(254), password: z.string().min(1).max(200) }).safeParse(body.data);
+      if (!parsed.success) throw new AppError("invalid_input", 422, "이메일과 비밀번호 형식을 확인해 주세요.");
+      const { error } = await s.auth.signInWithPassword(parsed.data);
       if (error) {
-        const mapped = authError(error);
-        throw mapped.code === "UNAUTHORIZED" ? new ApiError("LOGIN_FAILED") : mapped;
+        if (error.status === 429) throw new AppError("rate_limit", 429, "로그인 요청이 많아요. 잠시 후 다시 시도해 주세요.");
+        if (error.status && error.status >= 500) throw new AppError("auth_unavailable", 503, "로그인 서버에 연결하지 못했어요.");
+        throw new AppError("invalid_credentials", 401, "이메일 또는 비밀번호를 확인해 주세요.");
       }
-      return jsonReply({ ok: true }, requestId);
+      return response({ ok: true });
     }
     if (body.action === "logout") {
       const { error } = await s.auth.signOut();
-      if (error) throw authError(error);
-      return jsonReply({ ok: true }, requestId);
+      if (error) throw new AppError("logout_unconfirmed", 503, "로그아웃을 확인하지 못했어요. 다시 시도해 주세요.");
+      return response({ ok: true });
     }
-    const { data: { user }, error: authFailure } = await s.auth.getUser();
-    if (authFailure) throw authError(authFailure);
-    if (!user) throw new ApiError("UNAUTHORIZED");
-    const value = z.object({
-      action: z.enum(["submit", "review", "reason", "observe", "revise", "reassess", "complete"]),
-      id: z.uuid().nullable(),
-      version: z.number().int().positive().nullable(),
-      request: z.uuid(),
-      data: z.record(z.string(), z.unknown()),
-    }).parse(body);
-    if (["submit", "reason", "reassess"].includes(value.action)) reasonSchema.parse(value.data.reason);
-    if (value.action === "submit") {
-      const item = items.find((item) => item.id === value.data.item && item.pair);
-      if (!item || typeof value.data.prediction !== "string" || !item.choices.includes(value.data.prediction))
-        throw new ApiError("INVALID_INPUT");
+    const { data: { user }, error: authError } = await s.auth.getUser();
+    if (authError && authError.status && authError.status >= 500)
+      throw new AppError("auth_unavailable", 503, "로그인 정보를 확인하지 못했어요.");
+    if (!user) throw new AppError("unauthorized", 401, "로그인해 주세요.");
+    if (req.headers.has("x-science-actor") && req.headers.get("x-science-actor") !== user.id)
+      throw new AppError("session_changed", 401, "계정이 변경됐어요. 새로고침 후 다시 확인해 주세요.");
+    const v = labCommand(body);
+    if (v.action === "submit") {
+      const item = items.find((i) => i.id === v.data.item && i.pair);
+      if (!item || !item.choices.includes(String(v.data.prediction)))
+        throw new AppError("invalid_choice", 422, "이 문항의 선택지를 확인해 주세요.");
     }
-    if (value.action === "revise") reasonSchema.parse(value.data.text);
-    if (value.action === "reassess") {
-      const { data: snapshot, error } = await s.rpc("lab_list");
+    if (v.action === "reassess") {
+      const { data, error } = await s.rpc("lab_list");
       if (error) throw rpcError(error);
-      if (!snapshot || !Array.isArray(snapshot.records)) throw new ApiError("UNAVAILABLE");
-      const row = snapshot.records.find((record: { id: string }) => record.id === value.id);
-      if (!row) throw new ApiError("NOT_FOUND");
-      const original = items.find((item) => item.id === row.item_id);
-      const item = items.find((item) => item.id === original?.pair);
-      if (!item || typeof value.data.prediction !== "string" || !item.choices.includes(value.data.prediction))
-        throw new ApiError("INVALID_INPUT");
+      if (!data || !Array.isArray(data.records))
+        throw new AppError("invalid_response", 502, "재확인할 기록을 불러오지 못했어요.");
+      const row = data.records.find((r: { id: string }) => r.id === v.id);
+      if (!row) throw new AppError("not_found", 404, "재확인할 기록을 찾을 수 없어요.");
+      const original = items.find((i) => i.id === row.item_id);
+      const item = items.find((i) => i.id === original?.pair);
+      if (!item?.choices.includes(String(v.data.prediction)))
+        throw new AppError("invalid_choice", 422, "재확인 문항의 선택지를 확인해 주세요.");
     }
     const { data, error } = await s.rpc("lab_act", {
-      p_action: value.action, p_id: value.id, p_version: value.version,
-      p_data: value.data, p_request: value.request,
+      p_action: v.action, p_id: v.id, p_version: v.version, p_data: v.data, p_request: v.request,
     });
     if (error) throw rpcError(error);
-    if (typeof data !== "string") throw new ApiError("UNAVAILABLE");
-    return jsonReply({ id: data }, requestId);
+    if (typeof data !== "string") throw new AppError("save_unconfirmed", 502, "저장 결과를 확인하지 못했어요.");
+    return response({ id: data });
   } catch (error) { return failure(error, requestId); }
 }

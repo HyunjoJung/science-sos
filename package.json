@@ -11,10 +11,15 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --env-file=.env.local scripts/integration.mjs",
+    "test": "node --experimental-strip-types --test scripts/api-http.test.mjs scripts/unit/*.test.mjs",
     "test:classroom": "node --env-file=.env.local scripts/classroom-integration.mjs",
-    "worker": "node --env-file=.env.local scripts/cursor-worker.mjs",
-    "test:demo": "vitest run scripts/demo-store.test.ts"
+    "worker": "node --experimental-strip-types --env-file=.env.worker scripts/learning-worker.mjs",
+    "test:demo": "vitest run scripts/demo-store.test.ts",
+    "test:integration": "node --env-file=.env.local scripts/integration.mjs",
+    "test:unit": "node --experimental-strip-types --test scripts/unit/*.test.mjs",
+    "typecheck:foundation": "tsc -p tsconfig.foundation.json",
+    "worker:legacy": "node --env-file=.env.local scripts/cursor-worker.mjs",
+    "test:browser": "python scripts/browser/learning.py"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
