@@ -7,7 +7,7 @@ do $migration$
 declare definition text; signature text; old_ref text; occurrences integer;
 begin
  for signature,old_ref,occurrences in values
-  ('public.learning_command(text,uuid,integer,jsonb,uuid)','learning_command.actor',2),
+  ('public.learning_command(text,uuid,uuid,integer,jsonb,uuid)','learning_command.actor',2),
   ('public.learning_invite(uuid,uuid)','learning_invite.actor',2)
  loop
   definition := pg_get_functiondef(signature::regprocedure);
@@ -15,11 +15,6 @@ begin
    raise exception 'unexpected_rpc_definition: %', signature;
   end if;
   definition := replace(definition,old_ref,'auth.uid()');
-  if signature = 'public.learning_invite(uuid,uuid)' then
-   -- The actor local also shadows the unqualified conflict-target column.
-   definition := replace(definition,'on conflict(actor,request_id) do nothing',
-     'on conflict on constraint learning_invite_requests_pkey do nothing');
-  end if;
   execute definition;
  end loop;
 end $migration$;
