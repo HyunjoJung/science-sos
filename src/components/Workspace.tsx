@@ -1,5 +1,6 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createMutationClient, createLatestRequest, getJson } from "@/lib/runtime/client.mjs";
 import { FlaskConical, LogOut } from "lucide-react";
 import {
   lessons,
@@ -30,28 +31,6 @@ type Member = {
   role: "student" | "teacher";
   class_id: string;
 };
-async function request(
-  endpoint: string,
-  action: string,
-  data: unknown,
-  id: string | null = null,
-  version: number | null = null,
-) {
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action,
-      data,
-      id,
-      version,
-      request: crypto.randomUUID(),
-    }),
-  });
-  const result = await res.json();
-  if (!res.ok) throw Error(result.error);
-  return result;
-}
 type DemoEngine = typeof import("@/lib/demo-store");
 export default function Workspace({
   configured,
@@ -84,112 +63,114 @@ export default function Workspace({
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [toast, setToast] = useState("");
-  const refresh = useCallback(async () => {
+  const [mutations] = useState(() => createMutationClient({
+    storage: () => typeof window === "undefined" ? null : window.sessionStorage,
+  }));
+  const [refreshGate] = useState(createLatestRequest);
+  const mutationBusy = useRef(false);
+  const identity = useRef<string | null>(null);
+  const clearPrivateState = useCallback(() => {
+    identity.current = null;
+    setMember(null); setRecords([]); setSpace(emptySpace); setSelected("");
+  }, []);
+  const refresh = useCallback(async (force = false): Promise<boolean> => {
+    if (mutationBusy.current && !force) return false;
+    const ticket = refreshGate.begin();
     if (demo) {
-      if (!demoEngine) return;
+      if (!demoEngine) return false;
       try {
         const snapshot = demoEngine.getDemoSnapshot(demoRole, demoStudentId);
-        setMember(snapshot.member);
-        setRecords(snapshot.records);
-        setSpace(snapshot.space);
+        if (!ticket.isCurrent()) return false;
+        setMember(snapshot.member); setRecords(snapshot.records); setSpace(snapshot.space);
+        setLoading(false);
+        return true;
       } catch (e) {
+        if (ticket.isCurrent()) { setError((e as Error).message); setLoading(false); }
+        return false;
+      }
+    }
+    if (!configured) { clearPrivateState(); setLoading(false); return false; }
+    try {
+      const data = await getJson("/api/lab", ticket.signal);
+      if (!ticket.isCurrent()) return false;
+      if (!data || !("member" in data) || !Array.isArray(data.records)) throw Error("수업 응답 형식을 확인하지 못했어요.");
+      if (!data.member) { clearPrivateState(); return true; }
+      if (typeof data.member.user_id !== "string" || !["teacher", "student"].includes(data.member.role))
+        throw Error("사용자 정보를 확인하지 못했어요.");
+      if (identity.current && identity.current !== data.member.user_id) clearPrivateState();
+      const nextSpace = await getJson("/api/space", ticket.signal);
+      if (!ticket.isCurrent()) return false;
+      // The cookie may change in another tab between the two GET requests.
+      if (nextSpace?.member_id !== data.member.user_id) {
+        clearPrivateState();
+        throw Error("로그인 계정이 변경됐어요. 수업을 다시 불러와 주세요.");
+      }
+      if (["members", "materials", "feedback", "chats", "topics", "posts"].some((key) => !Array.isArray(nextSpace[key])))
+        throw Error("수업 자료 응답 형식을 확인하지 못했어요.");
+      identity.current = data.member.user_id;
+      setMember(data.member); setRecords(data.records);
+      setSpace({ ...emptySpace, ...nextSpace });
+      return true;
+    } catch (e) {
+      if (ticket.isCurrent()) {
+        if (e && typeof e === "object" && "status" in e && e.status === 401) clearPrivateState();
         setError((e as Error).message);
       }
-      setLoading(false);
-      return;
-    }
-    if (!configured) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const res = await fetch("/api/lab", { cache: "no-store" });
-      const data = await res.json();
-      if (!res.ok) throw Error(data.error);
-      setMember(data.member);
-      setRecords(data.records ?? []);
-      if (data.member) {
-        const sr = await fetch("/api/space", { cache: "no-store" });
-        const sd = await sr.json();
-        if (!sr.ok) throw Error(sd.error);
-        setSpace({ ...emptySpace, ...sd });
-      } else setSpace(emptySpace);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [configured, demo, demoEngine, demoRole, demoStudentId]);
+      return false;
+    } finally { if (ticket.isCurrent()) setLoading(false); }
+  }, [configured, demo, demoEngine, demoRole, demoStudentId, refreshGate, clearPrivateState]);
   useEffect(() => {
-    refresh();
-    if (demo) return;
-    const timer = setInterval(() => {
-      if (!document.hidden) refresh();
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [refresh, demo]);
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      if (!document.hidden || demo) await refresh();
+      if (!disposed && !demo) timer = setTimeout(poll, 5000);
+    }
+    void poll();
+    return () => { disposed = true; clearTimeout(timer); refreshGate.cancel(); };
+  }, [refresh, demo, refreshGate]);
   async function labAct(action: string, data: unknown, r?: RecordRow) {
-    setBusy(true);
-    setError("");
-    setToast("");
+    if (mutationBusy.current) return false;
+    mutationBusy.current = true;
+    refreshGate.cancel();
+    setBusy(true); setError(""); setToast("");
+    const scope = member?.user_id || "guest";
+    if (["login", "logout"].includes(action)) clearPrivateState();
     try {
-      if (demo && !demoEngine)
-        throw Error("시연 자료를 준비하고 있어요. 잠시 후 다시 눌러 주세요.");
+      if (demo && !demoEngine) throw Error("시연 자료를 준비하고 있어요. 잠시 후 다시 눌러 주세요.");
       if (demo) demoEngine!.getDemoSnapshot(demoRole, demoStudentId);
-      const result =
-        demo && demoEngine
-          ? await demoEngine.demoLabAction(action, data, r?.id)
-          : await request(
-              "/api/lab",
-              action,
-              data,
-              r?.id ?? null,
-              r?.version ?? null,
-            );
-      await refresh();
+      const result = demo && demoEngine
+        ? await demoEngine.demoLabAction(action, data, r?.id)
+        : await mutations.send(scope, "/api/lab", action, data, r?.id ?? null, r?.version ?? null);
+      const refreshed = await refresh(true);
       if (result.id) setSelected(result.id);
       if (action === "submit" || action === "reason") setPage("next");
-      if (action === "logout") {
-        setPage("review");
-        setSelected("");
-      }
+      if (action === "logout") { setPage("review"); setSelected(""); }
       if (action === "login") setPage("review");
       if (!["login", "logout"].includes(action))
-        setToast("생각을 저장하고 전달했어요.");
+        setToast(refreshed ? "생각을 저장하고 전달했어요." : "저장은 완료됐지만 최신 화면을 불러오지 못했어요.");
       return true;
-    } catch (e) {
-      setError((e as Error).message);
-      return false;
-    } finally {
-      setBusy(false);
-    }
+    } catch (e) { setError((e as Error).message); return false; }
+    finally { mutationBusy.current = false; setBusy(false); }
   }
   const spaceAct: Action = async (action, data, id) => {
-    setBusy(true);
-    setError("");
-    setToast("");
+    if (mutationBusy.current) return false;
+    mutationBusy.current = true;
+    refreshGate.cancel();
+    setBusy(true); setError(""); setToast("");
     try {
       if (demo) {
-        if (!demoEngine)
-          throw Error("시연 자료를 준비하고 있어요. 잠시 후 다시 눌러 주세요.");
+        if (!demoEngine) throw Error("시연 자료를 준비하고 있어요. 잠시 후 다시 눌러 주세요.");
         demoEngine.getDemoSnapshot(demoRole, demoStudentId);
         await demoEngine.demoSpaceAction(action, data, id);
-      } else await request("/api/space", action, data, id ?? null);
-      await refresh();
-      setToast(
-        action === "chat_send"
-          ? demo
-            ? "자료 답변을 표시했어요."
-            : "질문을 보냈어요. 답변이 도착하면 여기에 표시돼요."
-          : "저장했어요.",
-      );
+      } else await mutations.send(member?.user_id || "guest", "/api/space", action, data, id ?? null);
+      const refreshed = await refresh(true);
+      setToast(!refreshed ? "저장은 완료됐지만 최신 화면을 불러오지 못했어요."
+        : action === "chat_send" ? demo ? "자료 답변을 표시했어요." : "질문을 보냈어요. 답변이 도착하면 여기에 표시돼요."
+        : "저장했어요.");
       return true;
-    } catch (e) {
-      setError((e as Error).message);
-      return false;
-    } finally {
-      setBusy(false);
-    }
+    } catch (e) { setError((e as Error).message); return false; }
+    finally { mutationBusy.current = false; setBusy(false); }
   };
   const teacher = member?.role === "teacher",
     lesson = lessons.find((l) => l.id === lessonId)!;
@@ -321,6 +302,7 @@ export default function Workspace({
           </span>
         </div>
         <div className="ss-account">
+          {!demo && <a href="/learn" className="ss-button">다과목 학습 교실 →</a>}
           {member && (
             <>
               <span>{member.alias}</span>

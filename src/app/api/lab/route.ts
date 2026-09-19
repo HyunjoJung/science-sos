@@ -2,118 +2,90 @@ import { NextRequest, NextResponse } from "next/server";
 import { configured, db } from "@/lib/supabase";
 import { z } from "zod";
 import { items } from "@/lib/content";
-import { reasonSchema } from "@/lib/analysis";
-const response = (v: unknown, status = 200) =>
-  NextResponse.json(v, {
-    status,
-    headers: { "Cache-Control": "private, no-store" },
-  });
-export async function GET(req: NextRequest) {
-  if (!configured())
-    return response(
-      { error: "아직 데이터베이스 연결이 준비되지 않았어요." },
-      503,
-    );
-  const s = await db();
-  const {
-    data: { user },
-  } = await s.auth.getUser();
-  if (!user) return response({ member: null, records: [] });
-  const id = req.nextUrl.searchParams.get("experiment");
-  const { data, error } = await (id
-    ? s.rpc("lab_experiment", { p_id: id })
-    : s.rpc("lab_list"));
-  if (error) return response({ error: "이 기록에 접근할 권한이 없어요." }, 403);
-  return response(data);
+import { labCommand, uuid } from "@/lib/runtime/commands.mjs";
+import { AppError, object, publicFailure, readJson, requireOrigin, rpcError } from "@/lib/runtime/http.mjs";
+
+const response = (value: unknown, status = 200, headers: Record<string, string> = {}) =>
+  NextResponse.json(value, { status, headers: { "Cache-Control": "private, no-store", ...headers } });
+function failure(error: unknown, requestId: string) {
+  const result = publicFailure(error, requestId);
+  if (result.status >= 500) console.error("lab_request_failed", { requestId, code: result.body.code });
+  return response(result.body, result.status, { ...result.headers, "X-Request-Id": requestId });
 }
-export async function POST(req: NextRequest) {
+function ready() {
+  if (!configured()) throw new AppError("not_configured", 503, "데이터베이스 연결이 준비되지 않았어요.");
+}
+
+export async function GET(req: NextRequest) {
+  const requestId = crypto.randomUUID();
   try {
-    if (!configured())
-      return response({ error: "데이터베이스 연결이 필요해요." }, 503);
-    if (
-      req.headers.get("origin") !== req.nextUrl.origin &&
-      req.headers.get("origin") !== process.env.APP_ORIGIN
-    )
-      return response({ error: "허용되지 않은 요청이에요." }, 403);
-    const body = await req.json();
+    ready();
+    const s = await db();
+    const { data: { user }, error: authError } = await s.auth.getUser();
+    if (authError && authError.status && authError.status >= 500)
+      throw new AppError("auth_unavailable", 503, "로그인 정보를 확인하지 못했어요.");
+    if (!user) return response({ member: null, records: [] });
+    const id = req.nextUrl.searchParams.get("experiment");
+    if (id !== null) uuid(id);
+    const { data, error } = await (id ? s.rpc("lab_experiment", { p_id: id }) : s.rpc("lab_list"));
+    if (error) throw rpcError(error);
+    if (data === null) throw new AppError("invalid_response", 502, "기록을 불러오지 못했어요.");
+    return response(data);
+  } catch (error) { return failure(error, requestId); }
+}
+
+export async function POST(req: NextRequest) {
+  const requestId = crypto.randomUUID();
+  try {
+    ready();
+    requireOrigin(req, req.nextUrl.origin, process.env.APP_ORIGIN);
+    const body = object(await readJson(req));
     const s = await db();
     if (body.action === "login") {
-      const v = z
-        .object({ email: z.email(), password: z.string().min(1).max(200) })
-        .parse(body.data);
-      const { error } = await s.auth.signInWithPassword(v);
-      return error
-        ? response({ error: "이메일 또는 비밀번호를 확인해 주세요." }, 401)
-        : response({ ok: true });
-    }
-    if (body.action === "logout") {
-      await s.auth.signOut();
+      const parsed = z.object({ email: z.email().max(254), password: z.string().min(1).max(200) }).safeParse(body.data);
+      if (!parsed.success) throw new AppError("invalid_input", 422, "이메일과 비밀번호 형식을 확인해 주세요.");
+      const { error } = await s.auth.signInWithPassword(parsed.data);
+      if (error) {
+        if (error.status === 429) throw new AppError("rate_limit", 429, "로그인 요청이 많아요. 잠시 후 다시 시도해 주세요.");
+        if (error.status && error.status >= 500) throw new AppError("auth_unavailable", 503, "로그인 서버에 연결하지 못했어요.");
+        throw new AppError("invalid_credentials", 401, "이메일 또는 비밀번호를 확인해 주세요.");
+      }
       return response({ ok: true });
     }
-    const {
-      data: { user },
-    } = await s.auth.getUser();
-    if (!user) return response({ error: "로그인해 주세요." }, 401);
-    const v = z
-      .object({
-        action: z.enum([
-          "submit",
-          "review",
-          "reason",
-          "observe",
-          "revise",
-          "reassess",
-          "complete",
-        ]),
-        id: z.uuid().nullable(),
-        version: z.number().int().positive().nullable(),
-        request: z.uuid(),
-        data: z.record(z.string(), z.unknown()),
-      })
-      .parse(body);
-    if (
-      v.action === "submit" ||
-      v.action === "reason" ||
-      v.action === "reassess"
-    )
-      reasonSchema.parse(v.data.reason);
+    if (body.action === "logout") {
+      const { error } = await s.auth.signOut();
+      if (error) throw new AppError("logout_unconfirmed", 503, "로그아웃을 확인하지 못했어요. 다시 시도해 주세요.");
+      return response({ ok: true });
+    }
+    const { data: { user }, error: authError } = await s.auth.getUser();
+    if (authError && authError.status && authError.status >= 500)
+      throw new AppError("auth_unavailable", 503, "로그인 정보를 확인하지 못했어요.");
+    if (!user) throw new AppError("unauthorized", 401, "로그인해 주세요.");
+    if (req.headers.has("x-science-actor") && req.headers.get("x-science-actor") !== user.id)
+      throw new AppError("session_changed", 401, "계정이 변경됐어요. 새로고침 후 다시 확인해 주세요.");
+    const v = labCommand(body);
     if (v.action === "submit") {
       const item = items.find((i) => i.id === v.data.item && i.pair);
       if (!item || !item.choices.includes(String(v.data.prediction)))
-        throw Error("invalid");
+        throw new AppError("invalid_choice", 422, "이 문항의 선택지를 확인해 주세요.");
     }
-    if (v.action === "revise") reasonSchema.parse(v.data.text);
     if (v.action === "reassess") {
-      const { data } = await s.rpc("lab_list");
+      const { data, error } = await s.rpc("lab_list");
+      if (error) throw rpcError(error);
+      if (!data || !Array.isArray(data.records))
+        throw new AppError("invalid_response", 502, "재확인할 기록을 불러오지 못했어요.");
       const row = data.records.find((r: { id: string }) => r.id === v.id);
-      const original = items.find((i) => i.id === row?.item_id);
+      if (!row) throw new AppError("not_found", 404, "재확인할 기록을 찾을 수 없어요.");
+      const original = items.find((i) => i.id === row.item_id);
       const item = items.find((i) => i.id === original?.pair);
       if (!item?.choices.includes(String(v.data.prediction)))
-        throw Error("invalid");
+        throw new AppError("invalid_choice", 422, "재확인 문항의 선택지를 확인해 주세요.");
     }
     const { data, error } = await s.rpc("lab_act", {
-      p_action: v.action,
-      p_id: v.id,
-      p_version: v.version,
-      p_data: v.data,
-      p_request: v.request,
+      p_action: v.action, p_id: v.id, p_version: v.version, p_data: v.data, p_request: v.request,
     });
-    if (error) {
-      const conflict = error.message.includes("conflict");
-      return response(
-        {
-          error: conflict
-            ? "다른 화면에서 기록이 바뀌었어요. 새로고침 후 다시 확인해 주세요."
-            : "현재 단계에서 처리할 수 없어요. 입력과 권한을 확인해 주세요.",
-        },
-        conflict ? 409 : 422,
-      );
-    }
+    if (error) throw rpcError(error);
+    if (typeof data !== "string") throw new AppError("save_unconfirmed", 502, "저장 결과를 확인하지 못했어요.");
     return response({ id: data });
-  } catch {
-    return response(
-      { error: "입력값을 확인해 주세요. 설명은 1~300자로 작성할 수 있어요." },
-      422,
-    );
-  }
+  } catch (error) { return failure(error, requestId); }
 }

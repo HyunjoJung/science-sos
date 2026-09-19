@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { validateEvidence } from "./runtime/ai.mjs";
 export const proposalSchema = z.object({
   hypothesis: z.enum([
     "mass_only",
@@ -20,7 +21,6 @@ export const reasonSchema = z
   );
 export function validProposal(value: unknown, reason: string) {
   const p = proposalSchema.parse(value);
-  if (p.evidence && !reason.includes(p.evidence))
-    throw Error("근거가 원문과 일치하지 않습니다.");
+  validateEvidence(p, reason);
   return p;
 }

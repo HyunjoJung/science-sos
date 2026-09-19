@@ -1,3 +1,14 @@
+# 학습SOS · 다과목 교사 감독형 학습지원
+
+새 `/learn` 경로에서 과학·수학·독해 예제의 학생 제출, 근거 제안, 교사 검토, 활동, 전이문항, 최종 확인을 연결합니다. 기존 과학 교실과 데이터는 유지합니다. 새 경로의 추론은 개인 PC가 아닌 독립 서버 워커와 승인한 모델 API를 사용합니다.
+
+실행·DB 이전·검증·한도·남은 운영 조건은 [LEARNING_RUNTIME.md](docs/LEARNING_RUNTIME.md)를 확인하세요. 예제 팩은 교사 검토 후 배정하며 공식 교육과정 검증·학습 효과 검증이 완료됐다고 표시하지 않습니다. 실제 운영 준비 상태는 코드, 격리된 시험, 실제 호스팅 환경 검증을 나누어 판단합니다.
+
+---
+## 기존 과학 교실 기록
+
+아래는 기존 과학 교실의 구현 기록입니다. 개인 PC/Cursor 설명은 기존 교실 전용 워커에 해당합니다. 신규 경로에는 적용되지 않습니다.
+
 # 과학SOS · 반례실험실
 
 **오답을 실험 질문으로 바꾸는 중학교 과학 학습지원 도구.**
@@ -31,7 +42,7 @@ Next.js 앱과 실제 Supabase 인증·DB를 구현했습니다. 학생 답안�
 pnpm install --frozen-lockfile
 pnpm dev
 # 별도 터미널: 공식 Cursor CLI 로그인 및 .env.local 설정 후
-node --env-file=.env.local scripts/cursor-worker.mjs
+pnpm worker:legacy
 ```
 
 검증: `pnpm typecheck`, `pnpm build`, `node --env-file=.env.local scripts/integration.mjs`.

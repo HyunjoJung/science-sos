@@ -15,3 +15,7 @@ Thumbs.db
 .worker-inference/
 *.tsbuildinfo
 .secrets/
+
+!.env.worker.example
+test-results/
+playwright-report/

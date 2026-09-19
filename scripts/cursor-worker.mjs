@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { z } from "zod";
+import { validateEvidence, retrieveChunks, courseSources, persistCompletion } from "../src/lib/runtime/ai.mjs";
 const db = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY,
@@ -52,7 +53,7 @@ const lessonData = JSON.parse(
   await readFile(new URL("../src/lib/lessons.json", import.meta.url), "utf8"),
 );
 for (const l of lessonData)
-  if (l.id !== "D01") context[l.id] = l.title + " " + l.description;
+  if (!(l.id in context)) context[l.id] = l.title + " " + l.description;
 function run(input, customPrompt, customSchema) {
   return new Promise((ok, no) => {
     const prompt =
@@ -121,8 +122,7 @@ function run(input, customPrompt, customSchema) {
           .replace(/^```(?:json)?\s*/, "")
           .replace(/\s*```$/, "");
         const p = (customSchema || schema).parse(JSON.parse(json));
-        if (!customSchema && p.evidence && !input.reason.includes(p.evidence))
-          throw Error("invalid_evidence");
+        if (!customSchema) validateEvidence(p, input.reason);
         ok(p);
       } catch (e) {
         no(e);
@@ -160,31 +160,25 @@ const chatSchema = z.object({
 });
 async function processChat() {
   const { data: job, error } = await db.rpc("lab_chat_claim");
-  if (error) throw Error(error.code);
+  if (error) throw Error("chat_claim_failed");
   if (!job) return;
   console.log("Answering chat", job.id);
+  let completion;
   try {
-    const tokens = job.question.split(/\s+/).filter((t) => t.length > 1);
-    const candidates = (job.materials || [])
-      .map((m) => ({
-        ...m,
-        score: tokens.reduce(
-          (n, t) =>
-            n + (m.title.includes(t) ? 4 : 0) + (m.content.includes(t) ? 1 : 0),
-          0,
-        ),
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
-      .map((m) => ({ ...m, content: m.content.slice(0, 3000) }));
-    const { data: previous } = await db
+    if (typeof job.class_id !== "string" || typeof job.created_at !== "string")
+      throw Error("invalid_job_scope");
+    const candidates = retrieveChunks(job.question, job.materials || []);
+    const { data: previous, error: historyError } = await db
       .from("lab_chats")
       .select("question,answer")
       .eq("student_id", job.student_id)
+      .eq("class_id", job.class_id)
       .eq("room", job.room)
       .eq("status", "ready")
+      .lt("created_at", job.created_at)
       .order("created_at", { ascending: false })
       .limit(3);
+    if (historyError) throw Error("history_unavailable");
     const input = {
       question: job.question,
       history: (previous || []).reverse(),
@@ -196,49 +190,70 @@ async function processChat() {
       (job.room === "course"
         ? "제공된 자료의 내용으로만 답하고 핵심 근거 문장을 반드시 citations에 인용한다. 자료가 질문을 뒷받침하지 않으면 supported:false,citations:[],links:[]로 두고 자료에서 근거를 찾지 못했다고 말하며 다음 질문을 돕는다. 자료에 없는 내용을 지어내지 않는다."
         : "제공된 교육 사이트 목록에서 질문과 관련한 사이트만 links에 id로 추천한다. 웹 검색을 수행하거나 사이트 본문을 읽었다고 말하지 않는다. citations는 빈 배열이다. 목록 밖 URL을 생성하지 않는다. 수업과 무관한 요청은 링크 없이 답한다.") +
-      " 입력: " +
-      JSON.stringify(input);
+      " 입력: " + JSON.stringify(input);
     const result = await run(null, prompt, chatSchema);
-    const sources = [];
-    if (job.room === "course") {
-      if (result.links.length || (result.supported && !result.citations.length))
-        throw Error("missing_evidence");
-      for (const citation of result.citations) {
-        const m = candidates.find((m) => m.id === citation.id);
-        if (!m || !citation.quote.trim() || !m.content.includes(citation.quote))
-          throw Error("invalid_citation");
-        sources.push({
-          title: m.title,
-          section: m.section,
-          quote: citation.quote,
-        });
-      }
-    } else {
-      for (const id of result.links) {
+    let sources;
+    if (job.room === "course") sources = courseSources(result, candidates);
+    else {
+      if (result.citations.length) throw Error("invalid_external_citation");
+      sources = result.links.map((id) => {
         const resource = resources.find((r) => r.id === id);
         if (!resource) throw Error("invalid_link");
-        sources.push({ title: resource.title, url: resource.url });
-      }
+        return { title: resource.title, url: resource.url };
+      });
     }
-    const { error: finishError } = await db.rpc("lab_chat_finish", {
-      p_id: job.id,
-      p_lease: job.lease,
-      p_answer: result.answer,
-      p_sources: sources,
-      p_status: "ready",
+    completion = { p_answer: result.answer, p_sources: sources, p_status: "ready" };
+  } catch {
+    completion = {
+      p_answer: "답변을 생성하거나 근거를 확인하는 데 실패했어요. 잠시 후 다시 질문하거나 선생님께 물어봐 주세요.",
+      p_sources: [], p_status: "error",
+    };
+  }
+  const outcome = await persistCompletion((name, args) => db.rpc(name, args), "lab_chat_finish", {
+    p_id: job.id, p_lease: job.lease, ...completion,
+  });
+  // Only 'applied' acknowledges a saved result. False leases and lost replies are explicit.
+  console.log("Chat result", { id: job.id, status: completion.p_status, outcome });
+}
+
+async function processAnalysis() {
+  const { data, error } = await db
+    .from("lab_records")
+    .select("id,version")
+    .eq("state", "awaiting_review")
+    .eq("analysis_mode", "pending")
+    .order("created_at")
+    .limit(20);
+  if (error) throw Error("analysis_queue_unavailable");
+  for (const record of data || []) {
+    if (stop) return;
+    const { data: job, error: claimError } = await db.rpc("lab_ai_claim", {
+      p_id: record.id, p_version: record.version,
     });
-    if (finishError) throw Error(finishError.code);
-    console.log("Chat completed", job.id);
-  } catch (e) {
-    await db.rpc("lab_chat_finish", {
-      p_id: job.id,
-      p_lease: job.lease,
-      p_answer:
-        "답변을 생성하거나 근거를 확인하는 데 실패했어요. 잠시 후 다시 질문하거나 선생님께 물어봐 주세요.",
-      p_sources: [],
-      p_status: "error",
+    if (claimError) throw Error("analysis_claim_failed");
+    if (!job) continue;
+    let completion;
+    try {
+      if (!context[job.item_id]) throw Error("unknown_item_context");
+      // Claim returns the authoritative snapshot; do not analyze the earlier queue read.
+      const p = await run({ conditions: context[job.item_id], prediction: job.prediction, reason: job.reason });
+      completion = {
+        p_hypothesis: p.hypothesis,
+        p_note: p.note + (p.evidence ? " 근거: “" + p.evidence + "”" : ""),
+        p_mode: "live",
+      };
+    } catch {
+      completion = {
+        p_hypothesis: "hold",
+        p_note: "AI 연결 또는 응답 검증에 실패했습니다. 선생님이 원문을 직접 확인해 주세요.",
+        p_mode: "error",
+      };
+    }
+    const outcome = await persistCompletion((name, args) => db.rpc(name, args), "lab_ai_finish", {
+      p_id: job.id, p_version: job.version, p_lease: job.lease, ...completion,
     });
-    console.log("Chat failed", job.id, e.message);
+    console.log("Analysis result", { id: job.id, status: completion.p_mode, outcome });
+    return; // one claim per iteration, leaving time for chats
   }
 }
 let stop = false;
@@ -250,54 +265,10 @@ process.on("SIGTERM", () => {
 });
 console.log("Cursor AI worker started. No fixture responses.");
 while (!stop) {
-  try {
-    const { data, error } = await db
-      .from("lab_records")
-      .select("id,version,item_id,prediction,reason")
-      .eq("state", "awaiting_review")
-      .eq("analysis_mode", "pending")
-      .order("created_at")
-      .limit(1);
-    if (error) throw Error(error.code);
-    for (const r of data ?? []) {
-      const { data: job, error: ce } = await db.rpc("lab_ai_claim", {
-        p_id: r.id,
-        p_version: r.version,
-      });
-      if (ce || !job) continue;
-      console.log("Analyzing", r.id);
-      try {
-        const p = await run({
-          conditions: context[r.item_id],
-          prediction: r.prediction,
-          reason: r.reason,
-        });
-        const { error: fe } = await db.rpc("lab_ai_finish", {
-          p_id: r.id,
-          p_version: r.version,
-          p_lease: job.lease,
-          p_hypothesis: p.hypothesis,
-          p_note: p.note + (p.evidence ? " 근거: “" + p.evidence + "”" : ""),
-          p_mode: "live",
-        });
-        if (fe) throw Error(fe.code);
-        console.log("Completed", r.id);
-      } catch (e) {
-        await db.rpc("lab_ai_finish", {
-          p_id: r.id,
-          p_version: r.version,
-          p_lease: job.lease,
-          p_hypothesis: "hold",
-          p_note:
-            "AI 연결 또는 응답 검증에 실패했습니다. 선생님이 원문을 직접 확인해 주세요.",
-          p_mode: "error",
-        });
-        console.log("Analysis failed", r.id, e.message);
-      }
-    }
-    await processChat();
-  } catch (e) {
-    console.log("Worker connection issue", e.message);
-  }
-  await new Promise((r) => setTimeout(r, 3000));
+  try { await processAnalysis(); }
+  catch { console.log("Analysis queue unavailable; retrying on next poll"); }
+  if (stop) break;
+  try { await processChat(); }
+  catch { console.log("Chat queue unavailable; retrying on next poll"); }
+  if (!stop) await new Promise((resolve) => setTimeout(resolve, 3000));
 }
