@@ -1,119 +1,94 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { configured, db } from "@/lib/supabase";
 import { z } from "zod";
 import { items } from "@/lib/content";
 import { reasonSchema } from "@/lib/analysis";
-const response = (v: unknown, status = 200) =>
-  NextResponse.json(v, {
-    status,
-    headers: { "Cache-Control": "private, no-store" },
-  });
-export async function GET(req: NextRequest) {
-  if (!configured())
-    return response(
-      { error: "아직 데이터베이스 연결이 준비되지 않았어요." },
-      503,
-    );
-  const s = await db();
-  const {
-    data: { user },
-  } = await s.auth.getUser();
-  if (!user) return response({ member: null, records: [] });
-  const id = req.nextUrl.searchParams.get("experiment");
-  const { data, error } = await (id
-    ? s.rpc("lab_experiment", { p_id: id })
-    : s.rpc("lab_list"));
-  if (error) return response({ error: "이 기록에 접근할 권한이 없어요." }, 403);
-  return response(data);
+import {
+  ApiError, assertSameOrigin, authError, errorReply, jsonReply, readJsonObject, rpcError,
+} from "@/lib/server/api-http";
+
+function failure(error: unknown, requestId: string) {
+  return errorReply(error instanceof z.ZodError ? new ApiError("INVALID_INPUT") : error, requestId);
 }
-export async function POST(req: NextRequest) {
+
+export async function GET(req: NextRequest) {
+  const requestId = crypto.randomUUID();
   try {
-    if (!configured())
-      return response({ error: "데이터베이스 연결이 필요해요." }, 503);
-    if (
-      req.headers.get("origin") !== req.nextUrl.origin &&
-      req.headers.get("origin") !== process.env.APP_ORIGIN
-    )
-      return response({ error: "허용되지 않은 요청이에요." }, 403);
-    const body = await req.json();
+    if (!configured()) throw new ApiError("NOT_CONFIGURED");
+    const s = await db();
+    const { data: { user }, error: authFailure } = await s.auth.getUser();
+    if (authFailure) {
+      const error = authError(authFailure);
+      if (error.code !== "UNAUTHORIZED") throw error;
+      return jsonReply({ member: null, records: [] }, requestId);
+    }
+    if (!user) return jsonReply({ member: null, records: [] }, requestId);
+    const id = req.nextUrl.searchParams.get("experiment");
+    if (id !== null) z.uuid().parse(id);
+    const { data, error } = await (id
+      ? s.rpc("lab_experiment", { p_id: id })
+      : s.rpc("lab_list"));
+    if (error) throw rpcError(error);
+    if (data === null) throw new ApiError("UNAVAILABLE");
+    return jsonReply(data, requestId);
+  } catch (error) { return failure(error, requestId); }
+}
+
+export async function POST(req: NextRequest) {
+  const requestId = crypto.randomUUID();
+  try {
+    if (!configured()) throw new ApiError("NOT_CONFIGURED");
+    assertSameOrigin(req, process.env.APP_ORIGIN);
+    const body = await readJsonObject(req, 16 * 1024);
     const s = await db();
     if (body.action === "login") {
-      const v = z
-        .object({ email: z.email(), password: z.string().min(1).max(200) })
-        .parse(body.data);
-      const { error } = await s.auth.signInWithPassword(v);
-      return error
-        ? response({ error: "이메일 또는 비밀번호를 확인해 주세요." }, 401)
-        : response({ ok: true });
+      const value = z.object({ email: z.email(), password: z.string().min(1).max(200) }).parse(body.data);
+      const { error } = await s.auth.signInWithPassword(value);
+      if (error) {
+        const mapped = authError(error);
+        throw mapped.code === "UNAUTHORIZED" ? new ApiError("LOGIN_FAILED") : mapped;
+      }
+      return jsonReply({ ok: true }, requestId);
     }
     if (body.action === "logout") {
-      await s.auth.signOut();
-      return response({ ok: true });
+      const { error } = await s.auth.signOut();
+      if (error) throw authError(error);
+      return jsonReply({ ok: true }, requestId);
     }
-    const {
-      data: { user },
-    } = await s.auth.getUser();
-    if (!user) return response({ error: "로그인해 주세요." }, 401);
-    const v = z
-      .object({
-        action: z.enum([
-          "submit",
-          "review",
-          "reason",
-          "observe",
-          "revise",
-          "reassess",
-          "complete",
-        ]),
-        id: z.uuid().nullable(),
-        version: z.number().int().positive().nullable(),
-        request: z.uuid(),
-        data: z.record(z.string(), z.unknown()),
-      })
-      .parse(body);
-    if (
-      v.action === "submit" ||
-      v.action === "reason" ||
-      v.action === "reassess"
-    )
-      reasonSchema.parse(v.data.reason);
-    if (v.action === "submit") {
-      const item = items.find((i) => i.id === v.data.item && i.pair);
-      if (!item || !item.choices.includes(String(v.data.prediction)))
-        throw Error("invalid");
+    const { data: { user }, error: authFailure } = await s.auth.getUser();
+    if (authFailure) throw authError(authFailure);
+    if (!user) throw new ApiError("UNAUTHORIZED");
+    const value = z.object({
+      action: z.enum(["submit", "review", "reason", "observe", "revise", "reassess", "complete"]),
+      id: z.uuid().nullable(),
+      version: z.number().int().positive().nullable(),
+      request: z.uuid(),
+      data: z.record(z.string(), z.unknown()),
+    }).parse(body);
+    if (["submit", "reason", "reassess"].includes(value.action)) reasonSchema.parse(value.data.reason);
+    if (value.action === "submit") {
+      const item = items.find((item) => item.id === value.data.item && item.pair);
+      if (!item || typeof value.data.prediction !== "string" || !item.choices.includes(value.data.prediction))
+        throw new ApiError("INVALID_INPUT");
     }
-    if (v.action === "revise") reasonSchema.parse(v.data.text);
-    if (v.action === "reassess") {
-      const { data } = await s.rpc("lab_list");
-      const row = data.records.find((r: { id: string }) => r.id === v.id);
-      const original = items.find((i) => i.id === row?.item_id);
-      const item = items.find((i) => i.id === original?.pair);
-      if (!item?.choices.includes(String(v.data.prediction)))
-        throw Error("invalid");
+    if (value.action === "revise") reasonSchema.parse(value.data.text);
+    if (value.action === "reassess") {
+      const { data: snapshot, error } = await s.rpc("lab_list");
+      if (error) throw rpcError(error);
+      if (!snapshot || !Array.isArray(snapshot.records)) throw new ApiError("UNAVAILABLE");
+      const row = snapshot.records.find((record: { id: string }) => record.id === value.id);
+      if (!row) throw new ApiError("NOT_FOUND");
+      const original = items.find((item) => item.id === row.item_id);
+      const item = items.find((item) => item.id === original?.pair);
+      if (!item || typeof value.data.prediction !== "string" || !item.choices.includes(value.data.prediction))
+        throw new ApiError("INVALID_INPUT");
     }
     const { data, error } = await s.rpc("lab_act", {
-      p_action: v.action,
-      p_id: v.id,
-      p_version: v.version,
-      p_data: v.data,
-      p_request: v.request,
+      p_action: value.action, p_id: value.id, p_version: value.version,
+      p_data: value.data, p_request: value.request,
     });
-    if (error) {
-      const conflict = error.message.includes("conflict");
-      return response(
-        {
-          error: conflict
-            ? "다른 화면에서 기록이 바뀌었어요. 새로고침 후 다시 확인해 주세요."
-            : "현재 단계에서 처리할 수 없어요. 입력과 권한을 확인해 주세요.",
-        },
-        conflict ? 409 : 422,
-      );
-    }
-    return response({ id: data });
-  } catch {
-    return response(
-      { error: "입력값을 확인해 주세요. 설명은 1~300자로 작성할 수 있어요." },
-      422,
-    );
-  }
+    if (error) throw rpcError(error);
+    if (typeof data !== "string") throw new ApiError("UNAVAILABLE");
+    return jsonReply({ id: data }, requestId);
+  } catch (error) { return failure(error, requestId); }
 }

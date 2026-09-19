@@ -1,76 +1,53 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/supabase";
+import { NextRequest } from "next/server";
+import { configured, db } from "@/lib/supabase";
 import { z } from "zod";
 import answers from "@/lib/server/answers.json";
-const reply = (data: unknown, status = 200) =>
-  NextResponse.json(data, {
-    status,
-    headers: { "Cache-Control": "private, no-store" },
-  });
-export async function GET() {
-  const s = await db();
-  const {
-    data: { user },
-  } = await s.auth.getUser();
-  if (!user) return reply({ error: "로그인해 주세요." }, 401);
-  const { data, error } = await s.rpc("lab_space");
-  if (error) return reply({ error: "수업 정보를 불러올 수 없어요." }, 403);
-  const { data: m } = await s
-    .from("lab_members")
-    .select("role")
-    .eq("user_id", user.id)
-    .single();
-  return reply({
-    ...data,
-    answers: m?.role === "teacher" ? answers : undefined,
-  });
+import {
+  ApiError, assertSameOrigin, authError, errorReply, jsonReply, readJsonObject, rpcError,
+} from "@/lib/server/api-http";
+
+function failure(error: unknown, requestId: string) {
+  return errorReply(error instanceof z.ZodError ? new ApiError("INVALID_INPUT") : error, requestId);
 }
-export async function POST(req: NextRequest) {
+
+export async function GET() {
+  const requestId = crypto.randomUUID();
   try {
-    if (
-      req.headers.get("origin") !== req.nextUrl.origin &&
-      req.headers.get("origin") !== process.env.APP_ORIGIN
-    )
-      return reply({ error: "허용되지 않은 요청이에요." }, 403);
+    if (!configured()) throw new ApiError("NOT_CONFIGURED");
     const s = await db();
-    const {
-      data: { user },
-    } = await s.auth.getUser();
-    if (!user) return reply({ error: "로그인해 주세요." }, 401);
-    const v = z
-      .object({
-        action: z.enum([
-          "material_add",
-          "material_edit",
-          "feedback_send",
-          "feedback_read",
-          "chat_send",
-          "topic_add",
-          "post_add",
-          "like_toggle",
-        ]),
-        id: z.uuid().nullable(),
-        request: z.uuid(),
-        data: z.record(z.string(), z.unknown()),
-      })
-      .parse(await req.json());
+    const { data: { user }, error: authFailure } = await s.auth.getUser();
+    if (authFailure) throw authError(authFailure);
+    if (!user) throw new ApiError("UNAUTHORIZED");
+    const { data, error } = await s.rpc("lab_space");
+    if (error) throw rpcError(error);
+    if (!data || typeof data !== "object" || Array.isArray(data)) throw new ApiError("UNAVAILABLE");
+    const { data: member, error: memberError } = await s.from("lab_members")
+      .select("role").eq("user_id", user.id).single();
+    if (memberError) throw rpcError(memberError);
+    if (!member || !["teacher", "student"].includes(member.role)) throw new ApiError("FORBIDDEN");
+    return jsonReply({ ...data, answers: member.role === "teacher" ? answers : undefined }, requestId);
+  } catch (error) { return failure(error, requestId); }
+}
+
+export async function POST(req: NextRequest) {
+  const requestId = crypto.randomUUID();
+  try {
+    if (!configured()) throw new ApiError("NOT_CONFIGURED");
+    assertSameOrigin(req, process.env.APP_ORIGIN);
+    const body = await readJsonObject(req, 256 * 1024);
+    const s = await db();
+    const { data: { user }, error: authFailure } = await s.auth.getUser();
+    if (authFailure) throw authError(authFailure);
+    if (!user) throw new ApiError("UNAUTHORIZED");
+    const value = z.object({
+      action: z.enum(["material_add", "material_edit", "feedback_send", "feedback_read", "chat_send", "topic_add", "post_add", "like_toggle"]),
+      id: z.uuid().nullable(), request: z.uuid(), data: z.record(z.string(), z.unknown()),
+    }).parse(body);
     const { data, error } = await s.rpc("lab_space_act", {
-      p_action: v.action,
-      p_id: v.id,
-      p_data: v.data,
-      p_request: v.request,
+      p_action: value.action, p_id: value.id, p_data: value.data, p_request: value.request,
     });
-    if (error)
-      return reply(
-        {
-          error: error.message.includes("rate_limit")
-            ? "잠시 후 다시 보내주세요."
-            : "입력 내용과 수업 권한을 확인해 주세요.",
-        },
-        422,
-      );
-    return reply({ id: data });
-  } catch {
-    return reply({ error: "입력 내용을 확인해 주세요." }, 422);
-  }
+    if (error) throw rpcError(error);
+    if (typeof data !== "string") throw new ApiError("UNAVAILABLE");
+    return jsonReply({ id: data }, requestId);
+  } catch (error) { return failure(error, requestId); }
 }
