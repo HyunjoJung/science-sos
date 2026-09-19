@@ -71,7 +71,9 @@ class BrowserTests(unittest.TestCase):
   self.setup_api();self.fail=True;self.page.get_by_label('1/3이 더 커요',exact=True).check();self.page.get_by_label('이유',exact=True).fill('비공개 답안 원문은 저장소에 넣지 않습니다.')
   self.page.get_by_role('button',name='설명 보내기',exact=True).click();expect(self.page.locator('.learning-alert[role=alert]')).to_contain_text('일시적 연결 실패')
   self.page.get_by_role('button',name='설명 보내기',exact=True).click();self.page.wait_for_timeout(100)
-  self.assertEqual(len(self.posted),2);self.assertEqual(self.posted[0]['request'],self.posted[1]['request'])
+  self.assertEqual(len(self.posted),2)
+  self.assertEqual({k:v for k,v in self.posted[0].items() if k!='request'},{k:v for k,v in self.posted[1].items() if k!='request'},'Retry must represent the same command')
+  self.assertEqual(self.posted[0]['request'],self.posted[1]['request'],'Same-command UUID must survive 503; journal='+self.page.evaluate('JSON.stringify(sessionStorage)'))
   expect(self.page.get_by_label('이유',exact=True)).to_have_value('비공개 답안 원문은 저장소에 넣지 않습니다.')
   self.assertNotIn('비공개 답안',self.page.evaluate('JSON.stringify(sessionStorage)'))
  def test_interactive_fraction(self):
