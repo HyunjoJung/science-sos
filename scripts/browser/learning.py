@@ -69,7 +69,7 @@ class BrowserTests(unittest.TestCase):
   expect(self.page.get_by_label('학생에게 보낼 메시지')).to_have_value('입력 중인 피드백');expect(self.page.get_by_role('button',name='검토 결과 저장')).to_be_disabled()
  def test_failed_save_identity(self):
   self.setup_api();self.fail=True;self.page.get_by_label('1/3이 더 커요',exact=True).check();self.page.get_by_label('이유',exact=True).fill('비공개 답안 원문은 저장소에 넣지 않습니다.')
-  self.page.get_by_role('button',name='설명 보내기',exact=True).click();expect(self.page.get_by_role('alert')).to_contain_text('일시적 연결 실패')
+  self.page.get_by_role('button',name='설명 보내기',exact=True).click();expect(self.page.locator('.learning-alert[role=alert]')).to_contain_text('일시적 연결 실패')
   self.page.get_by_role('button',name='설명 보내기',exact=True).click();self.page.wait_for_timeout(100)
   self.assertEqual(len(self.posted),2);self.assertEqual(self.posted[0]['request'],self.posted[1]['request'])
   expect(self.page.get_by_label('이유',exact=True)).to_have_value('비공개 답안 원문은 저장소에 넣지 않습니다.')

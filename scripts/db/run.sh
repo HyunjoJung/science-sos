@@ -11,6 +11,6 @@ CHECK
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/db/bootstrap.sql
 for sql in supabase/migrations/00{1,2,3,4}_*.sql; do psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$sql"; done
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/db/fixtures.sql
-for sql in supabase/migrations/00{5,6,7,8}_*.sql; do psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$sql"; done
+for sql in supabase/migrations/00{5,6,7,8,9}_*.sql; do psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f "$sql"; done
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/db/learning.sql
 python scripts/db/concurrency.py
