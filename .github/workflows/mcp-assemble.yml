@@ -1,0 +1,79 @@
+name: Assemble MCP feature source
+on:
+  push:
+    branches: [build/mcp-source-20260920]
+permissions:
+  contents: write
+  actions: read
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: mcp-workspace
+          run-id: 35482691114
+          github-token: ${{ github.token }}
+          path: /tmp/mcp-prepared
+      - name: Verify immutable source and dependency snapshots
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, lzma, pathlib, tarfile, re
+          raw=lzma.decompress(b''.join(pathlib.Path(f'.mcp-transfer/part-{i}').read_bytes() for i in range(1,7)))
+          assert hashlib.sha256(raw).hexdigest()=='58fb88de643eed244610e9499aa73a4716678179a2e7451a4de65b7872f9794c'
+          data=json.loads(raw)
+          for name,text in data['files'].items():
+            p=pathlib.PurePosixPath(name)
+            assert not p.is_absolute() and not set(p.parts)&{'..','.git','.github'} and isinstance(text,str)
+          assert '.github/' not in data['patch'] and '.git/' not in data['patch']
+          pathlib.Path('/tmp/mcp-overlay.json').write_bytes(raw)
+          source=pathlib.Path('/tmp/mcp-prepared/source.tar.gz')
+          assert hashlib.sha256(source.read_bytes()).hexdigest()=='2e05ea1db193a6ad184afa4e2d4f5626f45f953f66f6a65715c8ddcde5cb8458'
+          with tarfile.open(source) as t:
+            text=t.extractfile('./pnpm-lock.yaml').read().decode()
+          m=re.search(r"      '@modelcontextprotocol/client':\n        specifier: 2.0.0\n        version: [^\n]+\n",text)
+          assert m
+          text=text[:m.start()]+text[m.end():]
+          text=text.replace('    dependencies:\n','    dependencies:\n'+m[0],1)
+          assert hashlib.sha256(text.encode()).hexdigest()=='3deda6a98494fd8dada9d6035b76d26b03a28d475a8c01741880b066853a311e'
+          pathlib.Path('/tmp/mcp-pnpm-lock.yaml').write_text(text)
+          PY
+      - name: Apply only reviewed source files on existing feature head
+        run: |
+          git checkout --detach 9208ca1d8904a0de66d9d173f64c667b025c1199
+          python3 - <<'PY'
+          import json,pathlib,subprocess
+          data=json.loads(pathlib.Path('/tmp/mcp-overlay.json').read_text())
+          pathlib.Path('/tmp/mcp.patch').write_text(data['patch'])
+          subprocess.run(['git','apply','--check','/tmp/mcp.patch'],check=True)
+          subprocess.run(['git','apply','/tmp/mcp.patch'],check=True)
+          for name,text in data['files'].items():
+            p=pathlib.Path(name);p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
+          pathlib.Path('pnpm-lock.yaml').write_bytes(pathlib.Path('/tmp/mcp-pnpm-lock.yaml').read_bytes())
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --global pnpm@10.33.2
+      - run: pnpm install --frozen-lockfile
+      - name: Verify standalone tests, typecheck and production build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: |
+          node --test scripts/unit/*.test.mjs scripts/mcp/*.test.mjs
+          pnpm exec tsc -p tsconfig.foundation.json
+          pnpm typecheck
+          pnpm build
+      - name: Publish source-only branch, never main or deployment
+        run: |
+          git add -- .dockerignore .env.learning.example deploy docs package.json pnpm-lock.yaml scripts src supabase
+          git diff --cached --name-only | grep -E '^(\.github/|\.mcp-transfer/)' && exit 1 || true
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: connect public MCP resources with teacher-approved sharing'
+          git push origin HEAD:refs/heads/feature/learning-mcp-resources
+          git rev-parse HEAD
