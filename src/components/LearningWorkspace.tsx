@@ -24,6 +24,7 @@ type Act=(action:string,data:Record<string,unknown>,id:string,version?:number)=>
 export default function LearningWorkspace(){
  const [view,setView]=useState<View>(empty),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[loadError,setLoadError]=useState(''),[notice,setNotice]=useState('');
  const [selected,setSelected]=useState('');
+ const courseSelectId=useId(),attemptSelectId=useId();
  const client=useRef(createMutationClient({storage:()=>window.sessionStorage}));
  const latest=useRef(createLatestRequest());
  const writing=useRef(false),mounted=useRef(true),knownUser=useRef(''),course=useRef('');
@@ -93,9 +94,9 @@ export default function LearningWorkspace(){
     <label>이메일<input name="email" type="email" autoComplete="username" required disabled={busy}/></label>
     <label>비밀번호<input name="password" type="password" autoComplete="current-password" required disabled={busy}/></label>
     <button disabled={busy}>{busy?'로그인 중…':'로그인'}</button></form></section>:<>
-   <div className="learning-toolbar"><label>수업<select value={view.course_id} disabled={busy||refreshing} onChange={e=>{
+   <div className="learning-toolbar"><div><label htmlFor={courseSelectId}>수업</label><select id={courseSelectId} value={view.course_id} disabled={busy||refreshing} onChange={e=>{
     latest.current.cancel();course.current=e.target.value;cursor.current=null;setSelected('');setView(v=>({...empty,user_id:v.user_id,courses:v.courses,course_id:e.target.value}));void refresh();
-   }}>{view.courses.map(c=><option key={c.id} value={c.id}>{c.title} · {c.role==='teacher'?'교사':'학생'}</option>)}</select></label>
+   }}>{view.courses.map(c=><option key={c.id} value={c.id}>{c.title} · {c.role==='teacher'?'교사':'학생'}</option>)}</select></div>
    <button disabled={busy||refreshing} onClick={()=>void refresh()}>다시 불러오기</button>{busy&&<span role="status">저장 중이에요.</span>}</div>
    {!view.courses.length?<p>아직 등록된 수업이 없어요. 담당 관리자에게 수업 등록을 요청하세요.</p>:<div key={JSON.stringify([view.user_id,view.course_id,view.role])}>
     {view.role==='teacher'&&<section className="learning-card"><h2>수업 팩 검토·배정</h2><p>아래 자료는 작성 예시입니다. 정답·범위·활동을 직접 검토한 뒤 이 반에 배정하세요.</p>
@@ -106,7 +107,7 @@ export default function LearningWorkspace(){
     <section className="learning-card"><h2>{view.role==='teacher'?'학생 생각 검토':'내 학습 기록'}</h2>
      <p>AI 제안은 확정 진단이 아닙니다. 연결 실패나 근거 부족도 교사가 원문을 보고 이어갈 수 있어요.</p>
      {!view.attempts.length?<p>아직 기록이 없어요.</p>:<>
-      <label>기록 선택<select value={current?.id??''} onChange={e=>setSelected(e.target.value)} disabled={busy||refreshing}>{view.attempts.map(a=><option key={a.id} value={a.id}>{a.title} · {stages[a.stage]} · {new Date(a.created_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})} · {a.student_id.slice(0,8)}</option>)}</select></label>
+      <label htmlFor={attemptSelectId}>기록 선택</label><select id={attemptSelectId} value={current?.id??''} onChange={e=>setSelected(e.target.value)} disabled={busy||refreshing}>{view.attempts.map(a=><option key={a.id} value={a.id}>{a.title} · {stages[a.stage]} · {new Date(a.created_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})} · {a.student_id.slice(0,8)}</option>)}</select>
       {current&&<AttemptPanel key={attemptDraftKey(view,current)} row={current} teacher={view.role==='teacher'} act={act} busy={busy}/>}</>}
      <div className="learning-toolbar"><button disabled={busy||refreshing||!cursor.current} onClick={()=>{cursor.current=null;setSelected('');void refresh();}}>최신 기록</button>
       <button disabled={busy||refreshing||!view.has_more} onClick={()=>{const last=view.attempts.at(-1);if(last){cursor.current={before:last.created_at,before_id:last.id};setSelected('');void refresh();}}}>이전 기록</button></div>
@@ -139,6 +140,7 @@ function ActivityView({activity:a}:{activity:Activity}){
 }
 function AttemptPanel({row:r,teacher,act,busy}:{row:Attempt;teacher:boolean;act:Act;busy:boolean}){
  const [feedback,setFeedback]=useState(''),[activity,setActivity]=useState(r.activities?.[0]?.id??''),[observation,setObservation]=useState(''),[explanation,setExplanation]=useState('');
+ const activitySelectId=useId();
  const chosenActivity=r.activities?.some(a=>a.id===activity)?activity:r.activities?.[0]?.id??'';
  const run=(action:string,data:Record<string,unknown>)=>act(action,data,r.id,r.version);
  const pending=r.job&&['queued','running','retry_wait'].includes(r.job.status);
@@ -148,7 +150,7 @@ function AttemptPanel({row:r,teacher,act,busy}:{row:Attempt;teacher:boolean;act:
    <p>다음 단계 제안: {proposalLabels[r.analysis.proposal?.kind]||'교사 확인'}</p><small>모델 {r.analysis.model} · 프롬프트 {r.analysis.promptVersion}</small></section>}
   {r.teacher_feedback&&<p><strong>선생님 피드백</strong> · {r.teacher_feedback}</p>}
   {teacher&&r.stage==='awaiting_review'&&<section><label>검토 의견 / 학생에게 보낼 질문<textarea required disabled={busy} value={feedback} maxLength={2000} onChange={e=>setFeedback(e.target.value)}/></label>
-   <label>확인 활동<select value={chosenActivity} disabled={busy||!r.activities?.length} onChange={e=>setActivity(e.target.value)}>{r.activities?.map(a=><option key={a.id} value={a.id}>{a.title}</option>)}</select></label>
+   <label htmlFor={activitySelectId}>확인 활동</label><select id={activitySelectId} value={chosenActivity} disabled={busy||!r.activities?.length} onChange={e=>setActivity(e.target.value)}>{r.activities?.map(a=><option key={a.id} value={a.id}>{a.title}</option>)}</select>
    <div className="learning-toolbar"><button disabled={busy||!feedback.trim()} onClick={()=>void run('request_clarification',{feedback})}>이유 더 묻기</button>
     <button disabled={busy||!feedback.trim()||!chosenActivity} onClick={()=>void run('assign_activity',{feedback,activity_id:chosenActivity})}>활동 배정</button>
     <button disabled={busy||!feedback.trim()} onClick={()=>void run('confirm_understanding',{feedback})}>이해 확인 · 새 문항으로</button></div></section>}
