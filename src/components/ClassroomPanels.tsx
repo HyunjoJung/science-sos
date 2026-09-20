@@ -138,7 +138,11 @@ export function FeedbackForm({
       <textarea
         id={"feedback-" + studentId}
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={(e) => {
+          setBody(e.target.value);
+          setSent(false);
+        }}
+        disabled={busy}
         required
         maxLength={1500}
         placeholder="네가 비교한 조건이 흥미로워. 만약…"
@@ -640,6 +644,7 @@ export function Chats({
               </div>
               <textarea
                 id="chat-question"
+                disabled={busy}
                 required
                 maxLength={500}
                 value={question}
@@ -824,6 +829,7 @@ export function Discussion({
           <textarea
             ref={composer}
             id="post-body"
+            disabled={busy}
             required
             maxLength={1500}
             value={body}

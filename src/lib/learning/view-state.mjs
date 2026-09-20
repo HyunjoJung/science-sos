@@ -25,3 +25,20 @@ export function attemptDraftKey(context, attempt) {
 export function reconcileAttemptSelection(attempts, selected) {
   return attempts.some(attempt => attempt.id === selected) ? selected : attempts[0]?.id ?? '';
 }
+
+/**
+ * A failed classroom read is not a failed login. Only a 401 establishes that a
+ * session is absent. The migration error is emitted after server-side auth has
+ * succeeded; other outages cannot establish or revoke a session.
+ * @typedef {'unknown'|'authenticated'|'unauthenticated'} LearningSession
+ * @param {LearningSession} previous
+ * @param {unknown} error
+ * @returns {LearningSession}
+ */
+export function sessionAfterLearningFailure(previous, error) {
+  const failure = error && typeof error === 'object'
+    ? /** @type {{status?:number,code?:string}} */ (error) : {};
+  if (failure.status === 401) return 'unauthenticated';
+  if (failure.status === 503 && failure.code === 'migration_required') return 'authenticated';
+  return previous;
+}

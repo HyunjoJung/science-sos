@@ -45,3 +45,5 @@ done
 if [ "$ready" != true ]; then echo 'Test services did not become ready'; exit 1; fi
 node scripts/integration/browser.cjs | tee .test-results/browser.log
 node scripts/integration/assert-persisted.mjs | tee .test-results/persisted.log
+node scripts/integration/login-recovery-browser.cjs | tee .test-results/login-recovery-browser.log
+node scripts/integration/legacy-browser.cjs | tee .test-results/legacy-browser.log

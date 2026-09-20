@@ -42,5 +42,5 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:demo
       - run: pnpm build
-      # Do not invoke `pnpm test` here: the legacy script writes to a real DB
-      # and queues paid/live inference. Use dedicated staging accounts for E2E.
+      # Pure logic and isolated browser/database suites run in learning.yml.
+      # Live test:integration and test:classroom are never invoked by CI.

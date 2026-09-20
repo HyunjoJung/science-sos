@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import LearningResources, {type LearningResource} from './LearningResources';
 import { createLatestRequest, createMutationClient, getJson } from '@/lib/runtime/client.mjs';
-import { attemptDraftKey, reconcileAttemptSelection } from '@/lib/learning/view-state.mjs';
+import { attemptDraftKey, reconcileAttemptSelection, sessionAfterLearningFailure } from '@/lib/learning/view-state.mjs';
 
 type Course={id:string;title:string;role:'teacher'|'student'};
 type Activity={id:string;kind:string;title:string;instruction:string;cases?:{label:string;value:string}[];denominators?:number[]};
@@ -20,21 +20,27 @@ const stages:Record<string,string>={awaiting_review:'교사 확인 대기',needs
 const interpretations:Record<string,string>={understood:'개념 이해 근거',misconception:'오개념 가설',uncertain:'추가 확인 필요',out_of_scope:'범위 확인 필요',ambiguous_item:'문항 확인 필요'};
 const proposalLabels:Record<string,string>={transfer_check:'새 문항으로 확인',activity_proposal:'확인 활동 제안',clarification:'설명 보완 질문',item_review:'문항·범위 검토',conflicting_evidence_review:'상충하는 근거 검토',operational_review:'직접 검토'};
 type Act=(action:string,data:Record<string,unknown>,id:string,version?:number)=>Promise<boolean>;
+type Session='unknown'|'authenticated'|'unauthenticated';
 
 export default function LearningWorkspace(){
  const [view,setView]=useState<View>(empty),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[loadError,setLoadError]=useState(''),[notice,setNotice]=useState('');
+ const [session,setSession]=useState<Session>('unknown');
  const [selected,setSelected]=useState('');
  const courseSelectId=useId(),attemptSelectId=useId(),emailId=useId(),passwordId=useId();
  const client=useRef(createMutationClient({storage:()=>window.sessionStorage}));
  const latest=useRef(createLatestRequest());
  const writing=useRef(false),mounted=useRef(true),knownUser=useRef(''),course=useRef('');
  const cursor=useRef<{before:string;before_id:string}|null>(null);
+ const clearClassroom=useCallback(()=>{
+  knownUser.current='';course.current='';cursor.current=null;setSelected('');setView(empty);setError('');setNotice('');setLoadError('');
+ },[]);
  const refresh=useCallback(async()=>{
   const request=latest.current.begin();setRefreshing(true);
   try{
    const home=await getJson('/api/learning',request.signal);
    if(!request.isCurrent()||!mounted.current)return false;
    if(typeof home.user_id!=='string'||!Array.isArray(home.courses))throw Error('수업 응답을 확인하지 못했어요.');
+   setSession('authenticated');
    if(knownUser.current && knownUser.current!==home.user_id){course.current='';cursor.current=null;setSelected('');setView(empty);setError('');setNotice('');}
    knownUser.current=home.user_id;
    const active:Course|undefined=home.courses.find((c:Course)=>c.id===course.current)||home.courses[0];
@@ -44,16 +50,17 @@ export default function LearningWorkspace(){
    const query=new URLSearchParams({course:active.id,...cursor.current});
    const data=await getJson('/api/learning?'+query,request.signal);
    if(!request.isCurrent()||!mounted.current)return false;
-   if(data.user_id!==home.user_id){knownUser.current='';setView(empty);throw Error('계정이 변경됐어요. 다시 불러와 주세요.');}
+   if(data.user_id!==home.user_id){clearClassroom();setSession('unknown');throw Error('계정이 변경됐어요. 다시 불러와 주세요.');}
    if(!Array.isArray(data.attempts)||!Array.isArray(data.assignments)||!Array.isArray(data.catalog))throw Error('수업 응답을 확인하지 못했어요.');
    setView({...data,courses:home.courses});setSelected(value=>reconcileAttemptSelection(data.attempts,value));setLoadError('');return true;
   }catch(e){
    if(request.isCurrent()&&mounted.current){
-    if((e as {status?:number}).status===401){knownUser.current='';course.current='';cursor.current=null;setSelected('');setView(empty);setLoadError('');}
+    setSession(previous=>sessionAfterLearningFailure(previous,e));
+    if((e as {status?:number}).status===401)clearClassroom();
     else setLoadError(e instanceof Error?e.message:'수업 연결을 확인해 주세요.');
    }return false;
   }finally{if(request.isCurrent()&&mounted.current){setLoading(false);setRefreshing(false);}}
- },[]);
+ },[clearClassroom]);
  useEffect(()=>{
   mounted.current=true;let ended=false;let timer:ReturnType<typeof setTimeout>;
   const tick=async()=>{if(!document.hidden&&!writing.current)await refresh();if(!ended)timer=setTimeout(tick,5000);};
@@ -69,31 +76,48 @@ export default function LearningWorkspace(){
    if(action==='submit'){cursor.current=null;setSelected(result.id??'');}
    const fresh=await refresh();
    setNotice(fresh?'저장했어요.':'저장은 완료됐어요. 최신 화면을 다시 불러와 주세요.');return true;
-  }catch(e){if(mounted.current){setError(e instanceof Error?e.message:'저장하지 못했어요.');if([401,409].includes((e as {status?:number}).status??0))await refresh();}return false;}
+  }catch(e){if(mounted.current){
+   const status=(e as {status?:number}).status;
+   if(status===401){clearClassroom();setSession('unauthenticated');}
+   setError(e instanceof Error?e.message:'저장하지 못했어요.');
+   if(status===409)await refresh();
+  }return false;}
   finally{writing.current=false;if(mounted.current){setBusy(false);setRefreshing(false);}}
  };
  async function authenticate(action:'login'|'logout',data:Record<string,unknown>){
   if(writing.current)return;writing.current=true;latest.current.cancel();setBusy(true);setError('');setNotice('');
-  if(action==='logout'){knownUser.current='';course.current='';cursor.current=null;setView(empty);setSelected('');}
+  if(action==='logout')clearClassroom();
   try{
    await client.current.send('guest','/api/lab',action,data);
-   cursor.current=null;await refresh();
-  }catch(e){if(mounted.current)setError(e instanceof Error?e.message:'로그인 연결을 확인해 주세요.');}
+   if(!mounted.current)return;
+   clearClassroom();setSession(action==='login'?'authenticated':'unauthenticated');
+   if(action==='login')await refresh();
+  }catch(e){if(mounted.current){
+   // A lost auth response may already have changed the cookie. Do not invite
+   // repeated password entry or claim logout succeeded before a server check.
+   if(((e as {status?:number}).status??500)>=500){setSession('unknown');await refresh();}
+   setError(e instanceof Error?e.message:'로그인 연결을 확인해 주세요.');
+  }}
   finally{writing.current=false;if(mounted.current){setBusy(false);setRefreshing(false);}}
  }
  const current=view.attempts.find(a=>a.id===selected)||view.attempts[0];
  return <main className="learning-shell">
   <header className="learning-header"><div><h1>학습SOS</h1><p>생각을 확인하고, 근거로 다시 설명해요.</p></div><a href="/">기존 과학 교실</a><a href="/integrations">MCP 연결 안내</a>
-   {view.user_id&&<button disabled={busy} onClick={()=>void authenticate('logout',{})}>로그아웃</button>}</header>
+   {session==='authenticated'&&<button disabled={busy} onClick={()=>void authenticate('logout',{})}>로그아웃</button>}</header>
   {error&&<div role="alert" className="learning-alert">{error} <button onClick={()=>setError('')}>닫기</button></div>}
   {loadError&&<div role="alert" className="learning-alert">{loadError} <button disabled={busy||refreshing} onClick={()=>void refresh()}>다시 불러오기</button> <button onClick={()=>setLoadError('')}>닫기</button></div>}
   {notice&&<p role="status">{notice}</p>}
-  {loading?<p role="status">수업을 불러오고 있어요.</p>:!view.user_id?<section className="learning-card"><h2>수업에 들어가기</h2>
+  {loading?<p role="status">수업을 불러오고 있어요.</p>:session==='unauthenticated'?<section className="learning-card"><h2>수업에 들어가기</h2>
    <p>배정받은 기존 학생·교사 계정으로 로그인하세요.</p>
    <form onSubmit={e=>{e.preventDefault();const form=new FormData(e.currentTarget);void authenticate('login',{email:form.get('email'),password:form.get('password')});}}>
     <label htmlFor={emailId}>이메일</label><input id={emailId} name="email" type="email" autoComplete="username" required disabled={busy}/>
     <label htmlFor={passwordId}>비밀번호</label><input id={passwordId} name="password" type="password" autoComplete="current-password" required disabled={busy}/>
-    <button disabled={busy}>{busy?'로그인 중…':'로그인'}</button></form></section>:<>
+    <button disabled={busy}>{busy?'로그인 중…':'로그인'}</button></form></section>:!view.user_id?<section className="learning-card" aria-labelledby="learning-connection-heading">
+   <h2 id="learning-connection-heading">학습 교실을 불러오지 못했어요</h2>
+   <p>{session==='authenticated'?'로그인은 확인됐어요. 학습 교실 연결이 준비되면 수업을 이어갈 수 있어요.':'연결이 원활하지 않아 로그인 상태를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.'}</p>
+   <p>기존 과학 교실에서도 수업을 이어갈 수 있어요.</p>
+   <div className="learning-toolbar"><a href="/">기존 과학 교실로 이동</a><button disabled={busy||refreshing} onClick={()=>void refresh()}>{refreshing?'연결 확인 중…':'연결 다시 확인'}</button></div>
+  </section>:<>
    <div className="learning-toolbar"><div><label htmlFor={courseSelectId}>수업</label><select id={courseSelectId} value={view.course_id} disabled={busy||refreshing} onChange={e=>{
     latest.current.cancel();course.current=e.target.value;cursor.current=null;setSelected('');setView(v=>({...empty,user_id:v.user_id,courses:v.courses,course_id:e.target.value}));void refresh();
    }}>{view.courses.map(c=><option key={c.id} value={c.id}>{c.title} · {c.role==='teacher'?'교사':'학생'}</option>)}</select></div>

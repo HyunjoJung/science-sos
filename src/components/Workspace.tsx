@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FlaskConical, LogOut } from "lucide-react";
 import {
   lessons,
@@ -66,6 +66,7 @@ export default function Workspace({
   const [demoEpoch, setDemoEpoch] = useState(0);
   const [group, setGroup] = useState("all");
   const [search, setSearch] = useState("");
+  const actionPending = useRef(false);
   useEffect(() => {
     if (demo)
       import("@/lib/demo-store").then(setDemoEngine).catch(() => {
@@ -129,6 +130,8 @@ export default function Workspace({
     return () => clearInterval(timer);
   }, [refresh, demo]);
   async function labAct(action: string, data: unknown, r?: RecordRow) {
+    if (actionPending.current) return false;
+    actionPending.current = true;
     setBusy(true);
     setError("");
     setToast("");
@@ -161,10 +164,13 @@ export default function Workspace({
       setError((e as Error).message);
       return false;
     } finally {
+      actionPending.current = false;
       setBusy(false);
     }
   }
   const spaceAct: Action = async (action, data, id) => {
+    if (actionPending.current) return false;
+    actionPending.current = true;
     setBusy(true);
     setError("");
     setToast("");
@@ -188,6 +194,7 @@ export default function Workspace({
       setError((e as Error).message);
       return false;
     } finally {
+      actionPending.current = false;
       setBusy(false);
     }
   };
@@ -657,7 +664,7 @@ export default function Workspace({
                     </div>
                     {row ? (
                       <Review
-                        key={row.id + row.version + row.analysis_mode}
+                        key={row.id}
                         r={row}
                         labAct={labAct}
                         spaceAct={spaceAct}
@@ -682,7 +689,13 @@ export default function Workspace({
                   {studentRow ? (
                     <section className="ss-panel ss-existing">
                       <Student
-                        key={studentRow.id + studentRow.version}
+                        key={JSON.stringify([
+                          studentRow.id,
+                          studentRow.state,
+                          studentRow.reason,
+                          studentRow.experiment_id,
+                          studentRow.teacher_question,
+                        ])}
                         r={studentRow}
                         localOnly={demo}
                         experiment={
@@ -946,19 +959,6 @@ function Review({
   spaceAct: Action;
   busy: boolean;
 }) {
-  const [decision, setDecision] = useState("confirm"),
-    [hypothesis, setHypothesis] = useState<Hypothesis>(r.hypothesis),
-    [activity, setActivity] = useState(
-      r.experiment_id ||
-        (["D01", "D02", "D03"].includes(r.item_id)
-          ? experiments.find((e) => e.kind === r.hypothesis)?.id ||
-            "wood80_iron20"
-          : "guided"),
-    ),
-    [question, setQuestion] = useState(
-      r.teacher_question || "그렇게 생각한 이유를 조금 더 설명해 줄래요?",
-    ),
-    [note, setNote] = useState("");
   const canReview = [
     "awaiting_review",
     "needs_more_reason",
@@ -1005,128 +1005,17 @@ function Review({
               {r.analysis_note || "학생의 원문을 읽고 직접 검토할 수도 있어요."}
             </p>
           </div>
-          <h3>어떻게 이어갈까요?</h3>
-          <div className="ss-decision">
-            {[
-              ["confirm", "확인"],
-              ["edit", "수정"],
-              ["hold", "보류"],
-            ].map(([id, label]) => (
-              <button
-                key={id}
-                aria-pressed={decision === id}
-                onClick={() => setDecision(id)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              labAct(
-                "review",
-                {
-                  decision,
-                  hypothesis,
-                  experiment: activity,
-                  question,
-                  review_note: note,
-                },
-                r,
-              );
-            }}
-          >
-            {decision === "hold" ? (
-              <label className="ss-field ss-label">
-                학생에게 보낼 추가 질문
-                <textarea
-                  required
-                  maxLength={500}
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                />
-              </label>
-            ) : (
-              <>
-                <label className="ss-field ss-label">
-                  확인할 설명 유형
-                  <select
-                    value={hypothesis}
-                    onChange={(e) => {
-                      const next = e.target.value as Hypothesis;
-                      setHypothesis(next);
-                      setActivity(
-                        ["D01", "D02", "D03"].includes(r.item_id)
-                          ? experiments.find((exp) => exp.kind === next)?.id ||
-                              "guided"
-                          : "guided",
-                      );
-                    }}
-                    required
-                  >
-                    <option value="hold" disabled>
-                      원문을 읽고 가설을 선택하세요
-                    </option>
-                    {Object.entries(hypotheses)
-                      .filter(([k]) => k !== "hold")
-                      .map(([id, label]) => (
-                        <option key={id} value={id}>
-                          {label}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                {decision === "edit" && (
-                  <label className="ss-field ss-label">
-                    수정 이유
-                    <input
-                      required
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      maxLength={300}
-                      placeholder="원문에서 확인한 근거를 남겨 주세요."
-                    />
-                  </label>
-                )}
-                <label className="ss-field ss-label">
-                  교사가 선택하는 다음 활동
-                  <select
-                    value={activity}
-                    onChange={(e) => setActivity(e.target.value)}
-                  >
-                    {experiments
-                      .filter(
-                        (e) =>
-                          ["D01", "D02", "D03"].includes(r.item_id) ||
-                          e.id === "guided",
-                      )
-                      .map((e) => (
-                        <option key={e.id} value={e.id}>
-                          {e.title}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-              </>
-            )}
-            <button
-              className="ss-button primary ss-wide"
-              disabled={busy || (decision !== "hold" && hypothesis === "hold")}
-            >
-              {decision === "hold"
-                ? "추가 질문 전달하기"
-                : decision === "edit"
-                  ? "수정하고 전달하기"
-                  : "확인하고 전달하기"}{" "}
-              →
-            </button>
-            <p className="ss-note">
-              {decision === "hold"
-                ? "활동을 배정하지 않고, 학생에게 이유를 다시 물어요."
-                : "선택한 활동이 학생의 ‘다음 활동’에 표시됩니다."}
-            </p>
-          </form>
+          <ReviewDecision
+            key={JSON.stringify([
+              r.state,
+              r.reason,
+              r.experiment_id,
+              r.teacher_question,
+            ])}
+            r={r}
+            labAct={labAct}
+            busy={busy}
+          />
         </>
       ) : (
         <div className="ss-existing">
@@ -1146,5 +1035,162 @@ function Review({
         busy={busy}
       />
     </section>
+  );
+}
+
+function ReviewDecision({
+  r,
+  labAct,
+  busy,
+}: {
+  r: RecordRow;
+  labAct: (a: string, d: unknown, r?: RecordRow) => Promise<boolean>;
+  busy: boolean;
+}) {
+  const [decision, setDecision] = useState("confirm"),
+    [selectedHypothesis, setHypothesis] = useState<Hypothesis | null>(null),
+    [selectedActivity, setActivity] = useState<string | null>(null),
+    [question, setQuestion] = useState(
+      r.teacher_question || "그렇게 생각한 이유를 조금 더 설명해 줄래요?",
+    ),
+    [note, setNote] = useState("");
+  // Follow a newly arrived AI suggestion until the teacher chooses a value.
+  const hypothesis = selectedHypothesis ?? r.hypothesis;
+  const activity =
+    selectedActivity ??
+    r.experiment_id ??
+    (["D01", "D02", "D03"].includes(r.item_id)
+      ? experiments.find((e) => e.kind === hypothesis)?.id || "wood80_iron20"
+      : "guided");
+  return (
+    <>
+      <h3>어떻게 이어갈까요?</h3>
+      <div className="ss-decision">
+        {[
+          ["confirm", "확인"],
+          ["edit", "수정"],
+          ["hold", "보류"],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            aria-pressed={decision === id}
+            disabled={busy}
+            onClick={() => setDecision(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          labAct(
+            "review",
+            {
+              decision,
+              hypothesis,
+              experiment: activity,
+              question,
+              review_note: note,
+            },
+            r,
+          );
+        }}
+      >
+        {decision === "hold" ? (
+          <label className="ss-field ss-label">
+            학생에게 보낼 추가 질문
+            <textarea
+              required
+              disabled={busy}
+              maxLength={500}
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+            />
+          </label>
+        ) : (
+          <>
+            <label className="ss-field ss-label">
+              확인할 설명 유형
+              <select
+                value={hypothesis}
+                disabled={busy}
+                onChange={(e) => {
+                  const next = e.target.value as Hypothesis;
+                  setHypothesis(next);
+                  setActivity(
+                    ["D01", "D02", "D03"].includes(r.item_id)
+                      ? experiments.find((exp) => exp.kind === next)?.id ||
+                          "guided"
+                      : "guided",
+                  );
+                }}
+                required
+              >
+                <option value="hold" disabled>
+                  원문을 읽고 가설을 선택하세요
+                </option>
+                {Object.entries(hypotheses)
+                  .filter(([k]) => k !== "hold")
+                  .map(([id, label]) => (
+                    <option key={id} value={id}>
+                      {label}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            {decision === "edit" && (
+              <label className="ss-field ss-label">
+                수정 이유
+                <input
+                  required
+                  disabled={busy}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  maxLength={300}
+                  placeholder="원문에서 확인한 근거를 남겨 주세요."
+                />
+              </label>
+            )}
+            <label className="ss-field ss-label">
+              교사가 선택하는 다음 활동
+              <select
+                value={activity}
+                disabled={busy}
+                onChange={(e) => setActivity(e.target.value)}
+              >
+                {experiments
+                  .filter(
+                    (e) =>
+                      ["D01", "D02", "D03"].includes(r.item_id) ||
+                      e.id === "guided",
+                  )
+                  .map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.title}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          </>
+        )}
+        <button
+          className="ss-button primary ss-wide"
+          disabled={busy || (decision !== "hold" && hypothesis === "hold")}
+        >
+          {decision === "hold"
+            ? "추가 질문 전달하기"
+            : decision === "edit"
+              ? "수정하고 전달하기"
+              : "확인하고 전달하기"}{" "}
+          →
+        </button>
+        <p className="ss-note">
+          {decision === "hold"
+            ? "활동을 배정하지 않고, 학생에게 이유를 다시 물어요."
+            : "선택한 활동이 학생의 ‘다음 활동’에 표시됩니다."}
+        </p>
+      </form>
+    </>
   );
 }
