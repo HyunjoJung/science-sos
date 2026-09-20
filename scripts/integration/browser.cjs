@@ -36,6 +36,26 @@ const fs=require('node:fs/promises');
    await task.locator('summary').click();await task.getByLabel('내 답',{exact:true}).selectOption(answer);await task.getByLabel('그렇게 생각한 이유',{exact:true}).fill('같은 전체와 조건을 비교해서 설명했어요.');await task.getByRole('button',{name:'내 생각 보내기',exact:true}).click();
    await awaitSavedAnalysis(subject);
    await stage(teacher,subject+' · 교사 확인 대기');
+   // Optional public MCP lookup MUST have actually completed before human delivery.
+   const beforeShare=await student.evaluate(async()=>{const h=await(await fetch('/api/learning')).json();return(await fetch('/api/learning?course='+h.courses[0].id)).json();});
+   const rowBefore=beforeShare.attempts.find(a=>a.title===subject);
+   assert.deepEqual(rowBefore.shared_resources,[]);assert.equal('resource_candidates' in rowBefore,false);
+   const resourceId=subject.startsWith('과학')?'phet-buoyancy':'phet-fractions';
+   const resourceCard=teacher.getByTestId('resource-'+resourceId);
+   await resourceCard.getByRole('checkbox').check();
+   await resourceCard.getByRole('button',{name:'학생에게 자료 전달',exact:true}).click();
+   await resourceCard.getByRole('button',{name:'자료 전달 철회',exact:true}).waitFor();
+   await student.getByRole('button',{name:'다시 불러오기',exact:true}).click();
+   await student.getByRole('region',{name:'교사 확인 학습자료'}).getByRole('link').waitFor();
+   // Revoke, verify disappearance, then explicitly re-approve for persistent evidence.
+   await resourceCard.getByRole('button',{name:'자료 전달 철회',exact:true}).click();
+   await resourceCard.getByRole('button',{name:'학생에게 자료 전달',exact:true}).waitFor();
+   await student.getByRole('button',{name:'다시 불러오기',exact:true}).click();
+   await student.getByText('아직 선생님이 전달한 자료가 없어요.').waitFor();
+   await resourceCard.getByRole('checkbox').check();
+   await resourceCard.getByRole('button',{name:'학생에게 자료 전달',exact:true}).click();
+   await resourceCard.getByRole('button',{name:'자료 전달 철회',exact:true}).waitFor();
+
    await teacher.getByLabel('검토 의견 / 학생에게 보낼 질문',{exact:true}).fill('조건을 활동으로 다시 비교해 주세요.');await teacher.getByRole('button',{name:'활동 배정',exact:true}).click();
    await stage(student,subject+' · 확인 활동');await student.getByLabel('활동에서 확인한 내용',{exact:true}).fill('바뀐 조건과 같게 둔 조건을 비교했습니다.');await student.getByLabel('다시 설명한 내 생각',{exact:true}).fill('조건에 따라 결과가 달라지는 이유를 설명했어요.');await student.getByRole('button',{name:'활동 기록 저장',exact:true}).click();
    const article=student.locator('article');await article.getByLabel('내 답',{exact:true}).selectOption(transfer);await article.getByLabel('그렇게 생각한 이유',{exact:true}).fill('새 조건에서도 같은 기준으로 비교했습니다.');await article.getByRole('button',{name:'새 문항 답안 보내기',exact:true}).click();

@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import LearningResources, {type LearningResource} from './LearningResources';
 import { createLatestRequest, createMutationClient, getJson } from '@/lib/runtime/client.mjs';
 
 type Course={id:string;title:string;role:'teacher'|'student'};
@@ -7,10 +8,10 @@ type Activity={id:string;kind:string;title:string;instruction:string;cases?:{lab
 type Item={prompt:string;choices:string[];correctAnswer?:string};
 type Pack=Item&{id:string;version:string;title:string;subject:string;scope:string;rubric:string;reviewNotice:string;activities:Activity[];transfer:Item};
 type Assignment=Item&{id:string;pack_id:string;pack_version:string;title:string;subject:string};
-type Attempt={id:string;student_id:string;title:string;stage:string;version:number;created_at:string;prompt:string;choices:string[];
+type Attempt={resource_revision?:number;resource_candidates?:LearningResource[];shared_resources?:LearningResource[];id:string;student_id:string;title:string;stage:string;version:number;created_at:string;prompt:string;choices:string[];
  response:{answer:string;reason:string};teacher_feedback?:string;final_feedback?:string;
  activity?:Activity;activities?:Activity[];activity_response?:{observation:string;explanation:string};transfer?:Item;transfer_response?:{answer:string;reason:string};
- analysis?:{interpretation:string;evidence:string;quote:string;note:string;ruleVerdict:string;model:string;promptVersion:string;proposal:{kind:string}};
+ analysis?:{resourceLookup?:{transport:string;status:string;catalogVersion:string};interpretation:string;evidence:string;quote:string;note:string;ruleVerdict:string;model:string;promptVersion:string;proposal:{kind:string}};
  job?:{status:string;error_code?:string;attempts:number;available_at:string}};
 type View={user_id:string;courses:Course[];course_id:string;role:string;attempts:Attempt[];assignments:Assignment[];catalog:Pack[];has_more:boolean};
 const empty:View={user_id:'',courses:[],course_id:'',role:'',attempts:[],assignments:[],catalog:[],has_more:false};
@@ -79,7 +80,7 @@ export default function LearningWorkspace(){
  }
  const current=view.attempts.find(a=>a.id===selected)||view.attempts[0];
  return <main className="learning-shell">
-  <header className="learning-header"><div><h1>학습SOS</h1><p>생각을 확인하고, 근거로 다시 설명해요.</p></div><a href="/">기존 과학 교실</a>
+  <header className="learning-header"><div><h1>학습SOS</h1><p>생각을 확인하고, 근거로 다시 설명해요.</p></div><a href="/">기존 과학 교실</a><a href="/integrations">MCP 연결 안내</a>
    {view.user_id&&<button disabled={busy} onClick={()=>void authenticate('logout',{})}>로그아웃</button>}</header>
   {error&&<div role="alert" className="learning-alert">{error} <button onClick={()=>setError('')}>닫기</button></div>}
   {notice&&<p role="status">{notice}</p>}
@@ -157,6 +158,7 @@ function AttemptPanel({row:r,teacher,act,busy}:{row:Attempt;teacher:boolean;act:
   {!teacher&&r.stage==='awaiting_transfer'&&r.transfer&&<AnswerForm item={r.transfer} busy={busy} label="새 문항 답안 보내기" onSend={d=>run('submit_transfer',d)}/>}
   {r.transfer_response&&<section><h4>새 문항에서의 설명</h4><p>{r.transfer?.prompt}</p><blockquote>{r.transfer_response.answer}<br/>{r.transfer_response.reason}</blockquote></section>}
   {teacher&&r.stage==='awaiting_final_review'&&<form onSubmit={e=>{e.preventDefault();void run('complete',{feedback});}}><label>재확인 의견<textarea required value={feedback} maxLength={2000} onChange={e=>setFeedback(e.target.value)}/></label><button disabled={busy||!feedback.trim()}>검토 완료</button></form>}
+  <LearningResources row={r} teacher={teacher} act={act} busy={busy}/>
   {r.final_feedback&&<p><strong>교사 최종 확인</strong> · {r.final_feedback}</p>}
  </article>;
 }

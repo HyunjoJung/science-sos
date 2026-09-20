@@ -21,14 +21,16 @@ export LEARNING_MODEL=ci-fixture
 export LEARNING_MODEL_API_KEY=ci-fixture-not-a-secret
 export LEARNING_ALLOW_LOCAL_MODEL=true LEARNING_ALLOW_LOCAL_DB=true
 export NEXT_TELEMETRY_DISABLED=1
+export LEARNING_PUBLIC_MCP_ENABLED=true LEARNING_RESOURCE_MODE=mcp LEARNING_ALLOW_LOCAL_MCP=true
 mkdir -p .test-results
 node --test scripts/unit/*.test.mjs | tee .test-results/unit.tap
+node --test scripts/mcp/*.test.mjs | tee .test-results/mcp.tap
 pnpm exec tsc -p tsconfig.foundation.json
 pnpm typecheck
 pnpm test:demo
 pnpm build
 psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/integration/bootstrap.sql
-for migration in supabase/migrations/*.sql; do psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"; done
+for migration in supabase/migrations/*.sql; do psql "$TEST_DATABASE_URL" -1 -v ON_ERROR_STOP=1 -f "$migration"; done
 # Both suites reset the same disposable DB; keep test files serial.
 node --test --test-concurrency=1 scripts/integration/*-db.test.mjs | tee .test-results/database.tap
 NODE_ENV=test node scripts/integration/auth-rpc-bridge.mjs >.test-results/bridge.log 2>&1 & bridge=$!

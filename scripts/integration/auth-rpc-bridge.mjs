@@ -9,6 +9,7 @@ function sign(data){const head=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'
 function verify(token){try{if(revoked.has(token))return null;const [a,b,c]=token.split('.');const expected=createHmac('sha256',jwtSecret).update(a+'.'+b).digest();const actual=Buffer.from(c,'base64url');if(actual.length!==expected.length||!timingSafeEqual(actual,expected))return null;const p=JSON.parse(Buffer.from(b,'base64url'));return p.exp>Date.now()/1000?p:null;}catch{return null;}}
 const functions={
  learning_home:[],learning_list:[['p_course','uuid'],['p_before','timestamptz'],['p_before_id','uuid']],
+ learning_resource_act:[['p_action','text'],['p_id','uuid'],['p_version','int'],['p_data','jsonb'],['p_request','uuid']],
  learning_act:[['p_action','text'],['p_id','uuid'],['p_version','int'],['p_data','jsonb'],['p_request','uuid']],
  learning_claim:[],learning_finish:[['p_job','uuid'],['p_lease','uuid'],['p_result','jsonb'],['p_error','text'],['p_retry','boolean']],learning_register_pack:[['p_pack','jsonb']],
 };
