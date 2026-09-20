@@ -17,5 +17,6 @@ Thumbs.db
 *.tsbuildinfo
 .secrets/
 .test-results/
+supabase/.temp/
 learning-student.png
 learning-teacher.png

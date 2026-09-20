@@ -47,3 +47,5 @@ node scripts/integration/browser.cjs | tee .test-results/browser.log
 node scripts/integration/assert-persisted.mjs | tee .test-results/persisted.log
 node scripts/integration/login-recovery-browser.cjs | tee .test-results/login-recovery-browser.log
 node scripts/integration/legacy-browser.cjs | tee .test-results/legacy-browser.log
+node scripts/integration/trial-api.mjs | tee .test-results/trial-api.log
+node scripts/integration/trial-browser.cjs | tee .test-results/trial-browser.log

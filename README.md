@@ -10,6 +10,7 @@ AI for Good 서울 정책 토론 및 해커톤에서 시작한 과학 교실을 
 | --- | --- | --- |
 | [과학 교실](https://science-sos.vercel.app/) `/` | 학생·교사 로그인, 사고 기록, 교사 검토, 반례 활동, 자료실·피드백·채팅·토론 | 기존 main 배포. Supabase에 저장하며 AI 분석·자료 답변에는 별도의 Cursor PC 워커 실행이 필요합니다. |
 | [체험 화면](https://science-sos.vercel.app/demo) `/demo` | 가상 학생 24명과 8개 수업을 활용한 화면 체험 | 기존 main 배포. 브라우저에 저장하는 가상 학급이며 분석과 답변은 사전 작성된 자료입니다. |
+| `/try` | 직접 쓴 이유의 실제 AI 분석, 교사 역할 확인, 반례 관찰·설명 수정 | 기능 브랜치. 체험 전용 DB·서버 환경변수·별도 Cursor 워커 연결이 필요합니다. [연결과 한도](docs/LIVE_TRIAL.md) |
 | `/learn` | 과학·수학 콘텐츠 팩, 교사 배정, 영속 작업 큐, 독립 분석 워커, 활동·전이 문항·피드백 | 기능 브랜치에 구현. 운영 DB 적용·모델 연결·상시 워커 배포가 필요한 경로입니다. |
 | `/integrations`, `/api/mcp` | 공개 학습자료 MCP 연결 안내와 읽기 전용 링크 디렉터리 | 기능 브랜치에 구현. 공개 MCP는 기본 OFF이며, 교사가 승인한 자료만 학생 기록에 전달합니다. |
 
@@ -85,6 +86,7 @@ pnpm test:classroom
 ## 문서
 
 - [원티드 제출 초안·현재 준비 상태](docs/WANTED_SUBMISSION.md)
+- [로그인 없는 실제 AI 체험](docs/LIVE_TRIAL.md)
 - [학습 경로와 독립 워커 연결](docs/LEARNING_CONNECTED.md)
 - [Vercel AI Gateway 설정·비용·오류 처리](docs/VERCEL_AI_GATEWAY.md)
 - [공개 MCP 자료 연결·교사 승인](docs/MCP_RESOURCES.md)
