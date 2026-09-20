@@ -175,7 +175,7 @@ function ready(job, hypothesis = 'mass_only') {
       const updatedReason = '지난 설명을 고쳐 물체와 액체의 밀도를 함께 비교해요.';
       await reasonInput(page).fill(updatedReason);
       await page.reload();
-      await page.getByText('AI 연결됨', {exact: true}).waitFor();
+      await page.getByText('분석 요청 가능', {exact: true}).waitFor();
       await heading(page, '왜 그렇게 생각했나요?').waitFor();
       assert.equal(await reasonInput(page).inputValue(), updatedReason, 'Reload must retain a new unsent explanation instead of restoring the earlier job text');
       await noActivity(page);
