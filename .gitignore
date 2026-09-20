@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+!.env.learning.example
 node_modules/
 dist/
 build/
@@ -15,3 +16,6 @@ Thumbs.db
 .worker-inference/
 *.tsbuildinfo
 .secrets/
+.test-results/
+learning-student.png
+learning-teacher.png

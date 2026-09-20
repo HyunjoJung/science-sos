@@ -1,0 +1,47 @@
+name: Connected learning checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: learning-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  connected:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: learning_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/learning_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --global pnpm@10.33.2
+      - run: pnpm install --frozen-lockfile
+      - name: Install pinned browser test runner
+        run: |
+          npm install --prefix "$RUNNER_TEMP/learning-browser" playwright@1.55.0
+          node "$RUNNER_TEMP/learning-browser/node_modules/playwright/cli.js" install --with-deps chromium
+          echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/learning-browser/node_modules/playwright" >> "$GITHUB_ENV"
+      - run: bash scripts/integration/verify-learning.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: connected-learning-evidence
+          include-hidden-files: true
+          path: |
+            .test-results/
+            learning-student.png
+            learning-teacher.png

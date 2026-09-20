@@ -1,0 +1,14 @@
+services:
+  learning-worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.learning-worker
+    env_file:
+      - ../.env.worker
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 70s
+    # Health endpoint is intentionally not published on a public host port.

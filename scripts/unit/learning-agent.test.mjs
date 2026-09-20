@@ -1,0 +1,33 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import {AgentError,boundedJson,modelConfig,analysisPrompt,validateAnalysis,createAnalyzer,workOnce} from '../../src/lib/learning/agent.mjs';
+const packs=JSON.parse(await readFile(new URL('../../content/learning-packs.json',import.meta.url)));
+const job={id:'job',lease:'lease',pack:packs[0],response:{answer:'나무만 떠요',reason:'물체의 밀도를 물과 비교해요.'}};
+const valid={interpretation:'understood',evidence:'supported',quote:'밀도를 물과 비교',note:'전이 문항으로 확인하세요.'};
+const config={endpoint:'https://model.example/v1/chat/completions',key:'test-secret',model:'test-model'};
+const envelope=v=>Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(v)}}],usage:{prompt_tokens:10,completion_tokens:20,total_tokens:30}});
+test('model endpoint is explicit and no credentials can be embedded in URL',()=>{
+ assert.throws(()=>modelConfig({}));assert.throws(()=>modelConfig({LEARNING_MODEL_ENDPOINT:'https://user:pass@host',LEARNING_MODEL:'x',LEARNING_MODEL_API_KEY:'x'}));
+ assert.throws(()=>modelConfig({LEARNING_MODEL_ENDPOINT:'http://host',LEARNING_MODEL:'x',LEARNING_MODEL_API_KEY:'x'}));
+ assert.equal(modelConfig({LEARNING_MODEL_PROVIDER:'compatible',LEARNING_MODEL_ENDPOINT:'http://localhost:4000/v1/chat/completions',LEARNING_MODEL:'x',LEARNING_MODEL_API_KEY:'x',LEARNING_ALLOW_LOCAL_MODEL:'true'}).model,'x');
+});
+test('prompt embeds response as data and does not expose transfer answers',()=>{const m=analysisPrompt(job);assert.equal(m[1].role,'user');assert.equal(JSON.parse(m[1].content).response.reason,job.response.reason);assert.ok(!m[1].content.includes('correctAnswer'));});
+for(const pack of packs)test(`catalog ${pack.id}: understood path uses same kernel`,()=>{const j={...job,pack,response:{...job.response,answer:pack.correctAnswer}};assert.equal(validateAnalysis(valid,j,'test').proposal.kind,'transfer_check');});
+test('deterministic answer check overrules an incorrect model interpretation',()=>{const j={...job,response:{...job.response,answer:'철만 떠요'}};assert.equal(validateAnalysis(valid,j,'test').ruleVerdict,'incorrect');assert.equal(validateAnalysis(valid,j,'test').proposal.kind,'conflicting_evidence_review');});
+test('fabricated quote rejected',()=>assert.throws(()=>validateAnalysis({...valid,quote:'존재하지 않음'},job,'test'),{code:'invalid_evidence'}));
+test('nonempty evidence required for supported claim',()=>assert.throws(()=>validateAnalysis({...valid,quote:''},job,'test'),{code:'invalid_evidence'}));
+test('insufficient evidence is not labelled understood',()=>assert.equal(validateAnalysis({...valid,evidence:'insufficient',quote:''},job,'test').proposal.kind,'clarification'));
+for(const property of ['interpretation','evidence','quote','note'])test(`missing ${property} is rejected`,()=>{const raw={...valid};delete raw[property];assert.throws(()=>validateAnalysis(raw,job,'test'));});
+test('usage is whitelisted and negative/non-numeric values dropped',()=>assert.deepEqual(validateAnalysis(valid,job,'test',{prompt_tokens:-1,completion_tokens:'x',total_tokens:4,student:'secret'}).usage,{total_tokens:4}));
+test('oversized streamed model output is cancelled',async()=>{let cancelled=false;const res=new Response(new ReadableStream({pull(c){c.enqueue(new Uint8Array(100));},cancel(){cancelled=true;}}));await assert.rejects(boundedJson(res,50));assert.equal(cancelled,true);});
+test('provider request has redirect protection and no tool grants',async()=>{
+ let request;const fn=createAnalyzer(config,async(url,options)=>{request={url,...options};return envelope(valid);});assert.equal((await fn(job)).model,'test-model');
+ assert.equal(request.redirect,'error');assert.equal(request.headers.Authorization,'Bearer test-secret');assert.equal(JSON.parse(request.body).tools,undefined);
+});
+for(const [status,retryable] of [[400,false],[401,false],[403,false],[429,true],[500,true],[503,true]])test(`provider ${status} retry=${retryable}`,async()=>{const fn=createAnalyzer(config,async()=>new Response('',{status}));await assert.rejects(fn(job),e=>e instanceof AgentError&&e.retryable===retryable);});
+test('truncated model output rejected',async()=>{const fn=createAnalyzer(config,async()=>Response.json({choices:[{finish_reason:'length',message:{content:JSON.stringify(valid)}}]}));await assert.rejects(fn(job),{code:'invalid_output'});});
+test('idle worker does not invoke model',async()=>assert.equal(await workOnce({rpc:async()=>null,analyze:async()=>assert.fail()}),'idle'));
+test('worker saves verified inference once',async()=>{const calls=[];const status=await workOnce({rpc:async(n,a)=>{calls.push([n,a]);return n==='learning_claim'?job:true;},analyze:async()=>valid});assert.equal(status,'applied');assert.equal(calls.length,2);assert.equal(calls[1][1].p_error,null);});
+test('stale lease is not logged as success',async()=>assert.equal(await workOnce({rpc:async n=>n==='learning_claim'?job:false,analyze:async()=>valid}),'stale'));
+test('uncertain completion never overwrites success with an error payload',async()=>{const calls=[];assert.equal(await workOnce({rpc:async(n,a)=>{calls.push([n,a]);if(n==='learning_claim')return job;throw Error('lost response');},analyze:async()=>valid}),'unconfirmed');assert.equal(calls.length,2);assert.equal(calls[1][1].p_error,null);});
+test('transient failure is bounded by DB attempt count',async()=>{let saved;await workOnce({rpc:async(n,a)=>{if(n==='learning_claim')return job;saved=a;return true;},analyze:async()=>{throw new AgentError('timeout',true);}});assert.equal(saved.p_retry,true);assert.equal(saved.p_result,null);});
