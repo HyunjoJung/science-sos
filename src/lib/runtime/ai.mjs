@@ -89,3 +89,17 @@ export async function persistCompletion(rpc, name, args) {
   try { return finishOutcome(await rpc(name, args)); }
   catch { return "unconfirmed"; }
 }
+
+/** Generate first, then persist exactly once. An acknowledgement failure must
+ * never be handled as an inference failure and overwrite an accepted answer.
+ * @param {{rpc: (name: string, args: Record<string, unknown>) => PromiseLike<{data: unknown, error: unknown}>,
+ * name: string, generate: () => Promise<Record<string, unknown>>, fallback: Record<string, unknown>}} options
+ */
+export async function completeLegacyJob({ rpc, name, generate, fallback }) {
+  let args;
+  let generated = true;
+  try { args = await generate(); }
+  catch { args = fallback; generated = false; }
+  const outcome = await persistCompletion(rpc, name, args);
+  return { generated, outcome };
+}

@@ -28,7 +28,7 @@ export default function LearningResources({row,teacher,act,busy}:{row:ResourceRo
   {teacher?<>
    <p>공식 링크 디렉터리의 참고 후보입니다. 채점 근거나 자동 처방이 아닙니다. 원문과 접근 조건을 확인한 뒤 전달하세요.</p>
    {lookup&&<p className="learning-tool-trace" role="status">{lookup.transport==='mcp'?'MCP':'로컬'} 자료 조회 · {lookup.status==='ok'?'완료':lookup.status==='unsupported'?'지원 주제 없음':'자료 연결 미완료'} · 목록 {lookup.catalogVersion}</p>}
-   {(row.resource_candidates??[]).map(r=><ReviewCard key={r.id+r.version} r={r} busy={busy} shared={shared.some(s=>s.id===r.id&&s.version===r.version)} share={()=>send('share_resource',r)} revoke={()=>send('revoke_resource',r)}/>)}
+   {(row.resource_candidates??[]).map(r=>{const isShared=shared.some(s=>s.id===r.id&&s.version===r.version);return <ReviewCard key={JSON.stringify([row.id,r.id,r.version,isShared])} r={r} busy={busy} shared={isShared} share={()=>send('share_resource',r)} revoke={()=>send('revoke_resource',r)}/>;})}
    {!row.resource_candidates?.length&&<p>이 수업에 검토할 공개 자료 후보가 없습니다.</p>}
   </>:shared.length?shared.map(r=><div className="learning-resource-card" key={r.id+r.version}><ResourceLink resource={r}/><p>{r.summary}</p><small>{r.notice}</small></div>):<p>아직 선생님이 전달한 자료가 없어요.</p>}
  </section>;
