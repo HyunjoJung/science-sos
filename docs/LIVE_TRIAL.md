@@ -2,6 +2,8 @@
 
 `/try`는 방문자가 직접 작성한 과학 이유 문장을 Cursor CLI로 분석하는 별도 공간이다. `/demo`의 사전 작성 분석을 호출하거나 실패 시 대신 보여주지 않는다. 기존 학생 계정, 교사 비밀번호, 실제 학급 기록을 방문자에게 제공하지 않는다.
 
+2026-09-20 확인 상태: 체험 전용 마이그레이션을 기존 Supabase 프로젝트에 단독 적용했다. 기존 학급 테이블과 미적용 학습 확장 마이그레이션은 변경하지 않았다. 로컬 브라우저에서 입력→Supabase 큐→실제 Cursor 결과→교사 역할 확인→관찰·설명 수정·새 사례를 완료했다. 외부 Vercel 프리뷰는 서버 비밀키 등록 승인 대기 중이며, 이 상태를 공개 AI 연결 완료로 표현하지 않는다. main과 원티드에 저장한 서비스 URL은 그대로다.
+
 ## 사용 흐름
 
 1. 나무 80g·철 20g의 뜨고 가라앉음을 예측하고 이유를 1~300자로 작성한다.
@@ -40,3 +42,5 @@ DB 트랜잭션에서 세션당 하루 3회, IP당 하루 10회, 체험 전체 �
 - 실제 Cursor 호출은 별도의 합성 과학 문장으로 확인한다. CI의 대체 모델 응답은 실제 AI 성능 증거가 아니다.
 
 참고: [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Vercel 요청 헤더](https://vercel.com/docs/headers/request-headers).
+
+보안 점검에서 새 체험 테이블 두 개의 RLS와 브라우저 역할 권한 회수, 네 RPC의 SECURITY INVOKER와 service_role 전용 실행을 확인했다. 새 테이블의 [RLS 정책 없음 안내](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)는 브라우저에서 모두 차단하고 서버만 접근하도록 설계한 결과다. 기존 프로젝트의 다른 권한·인증 설정은 이번 체험 추가에서 변경하지 않았다.

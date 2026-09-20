@@ -93,6 +93,9 @@ function emptyFlow(): LocalFlow {
 }
 function isPending(job: TrialJob | null) { return job?.status === "queued" || job?.status === "running"; }
 function errorMessage(code?: string) {
+  if (code === "NOT_CONFIGURED") return "AI 체험 연결을 준비하고 있어요. 연결 상태를 다시 확인하거나 가상 학급의 수업 흐름을 먼저 둘러보세요.";
+  if (code === "SESSION_REQUIRED") return "체험 연결을 다시 확인해 주세요. 입력한 이유를 유지한 채 다시 보낼 수 있어요.";
+  if (code === "INVALID_ORIGIN") return "현재 페이지 주소에서 요청을 연결하지 못했어요. 페이지를 새로고침한 뒤 다시 시도해 주세요.";
   if (code === "WORKER_OFFLINE") return "지금은 AI 분석 연결이 쉬고 있어요. 입력한 이유는 그대로 두고, 연결 상태를 다시 확인해 주세요.";
   if (code === "RATE_LIMITED") return "오늘 이용할 수 있는 분석 횟수를 모두 사용했거나 전체 체험 한도에 도달했어요. 이미 받은 분석과 다음 활동은 계속 볼 수 있어요.";
   if (code === "CONFLICT") return "이미 진행 중인 분석이 있어요. 상태를 다시 확인해 주세요.";
@@ -307,7 +310,7 @@ export default function LiveTrial() {
       <div className="trial-shell">
         <header className="trial-header">
           <Link href="/" className="trial-brand"><span><FlaskConical size={23} /></span><div><b>과학SOS</b><small>THINK. ASK. DISCOVER.</small></div></Link>
-          <div className="trial-header-right"><span className="trial-tag">로그인 없이 직접 AI 체험</span><span className={`trial-connection ${online === true ? "online" : ""}`}><i />{online === null ? "연결 확인 중" : online ? "AI 연결됨" : "AI 연결 대기"}</span></div>
+          <div className="trial-header-right"><span className="trial-tag">로그인 없이 직접 AI 체험</span><span className={`trial-connection ${online === true ? "online" : ""}`}><i />{online === null ? error ? "연결 확인 필요" : "연결 확인 중" : online ? "분석 요청 가능" : "AI 연결 대기"}</span></div>
         </header>
         <div className="trial-layout">
           <aside className="trial-sidebar">

@@ -167,12 +167,47 @@ function ready(job, hypothesis = 'mass_only') {
       console.log('PASS trial UI fixtures: GET restores a job and reload retains this tab’s observation without resubmission');
     } finally { await restored.close(); }
 
+    const unsent = await fixture({job: ready(makeJob())});
+    try {
+      const {page, state} = unsent;
+      await heading(page, 'AI의 가설을 직접 살펴봐요.').waitFor();
+      await button(page, '보류 · 이유 다시 묻기').click();
+      const updatedReason = '지난 설명을 고쳐 물체와 액체의 밀도를 함께 비교해요.';
+      await reasonInput(page).fill(updatedReason);
+      await page.reload();
+      await page.getByText('AI 연결됨', {exact: true}).waitFor();
+      await heading(page, '왜 그렇게 생각했나요?').waitFor();
+      assert.equal(await reasonInput(page).inputValue(), updatedReason, 'Reload must retain a new unsent explanation instead of restoring the earlier job text');
+      await noActivity(page);
+      assert.equal(state.posts.length, 0);
+      console.log('PASS trial UI fixtures: a revised unsent explanation and prediction phase survive reload after an earlier ready job');
+    } finally { await unsent.close(); }
+
+    const finishedDuringReload = await fixture({job: makeJob()});
+    try {
+      const {page, state} = finishedDuringReload;
+      await heading(page, '분석 순서를 기다리고 있어요.').waitFor();
+      state.job = ready(state.job);
+      await page.reload();
+      await heading(page, 'AI의 가설을 직접 살펴봐요.').waitFor();
+      assert.equal(await page.locator('blockquote').innerText(), initialReason);
+      await noActivity(page);
+      assert.equal(state.posts.length, 0);
+      console.log('PASS trial UI fixtures: a job completed during reload enters review instead of restoring its old waiting phase');
+    } finally { await finishedDuringReload.close(); }
+
     const recovery = await fixture();
     try {
       const {page, state} = recovery;
       await submit(page, initialReason);
+      const failedPoll = page.waitForResponse(response => new URL(response.url()).pathname === '/api/trial' && response.request().method() === 'GET' && response.status() === 503);
       state.failReads = true;
-      await page.getByRole('alert').waitFor();
+      await failedPoll;
+      // Next's route announcer also has role=alert. Only the application alert
+      // proves the failed poll was handled and exposes the recovery control.
+      const alert = page.getByRole('main').getByRole('alert');
+      await alert.waitFor();
+      await alert.getByRole('button', {name: '상태 다시 확인', exact: true}).waitFor();
       assert.equal(await reasonInput(page).inputValue(), initialReason);
       assert.equal(await page.getByRole('radio', {name: prediction, exact: true}).isChecked(), true);
       await noActivity(page);
@@ -180,7 +215,7 @@ function ready(job, hypothesis = 'mass_only') {
       state.job = ready(state.job);
       await button(page, '상태 다시 확인').click();
       await heading(page, 'AI의 가설을 직접 살펴봐요.').waitFor();
-      assert.equal(await page.getByRole('alert').count(), 0);
+      assert.equal(await alert.count(), 0);
       assert.equal(await page.locator('blockquote').innerText(), initialReason);
       assert.equal(state.posts.length, 1, 'Retrying status after polling fails must not duplicate submission');
       console.log('PASS trial UI fixtures: polling failure retains input and status retry recovers the same job');
