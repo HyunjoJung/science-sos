@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateEvidence, finishOutcome, persistCompletion, retrieveChunks, courseSources } from "../../src/lib/runtime/ai.mjs";
+import { validateEvidence, finishOutcome, persistCompletion, completeLegacyJob, retrieveChunks, courseSources } from "../../src/lib/runtime/ai.mjs";
 const reason = "80g 나무가 더 무거우니까 가라앉아요.";
 const proposal = { hypothesis: "mass_only", reason_status: "contradictory", evidence: "더 무거우니까" };
 test("verbatim evidence supports a hypothesis contract", () => assert.equal(validateEvidence(proposal, reason), proposal));
@@ -16,6 +16,31 @@ test("lost DB acknowledgement never triggers an error overwrite", async () => {
   assert.equal(result, "unconfirmed"); assert.equal(calls.length, 1); assert.equal(calls[0].args.p_mode, "live");
 });
 test("persistence distinguishes stale leases", async () => assert.equal(await persistCompletion(async () => ({ data: false, error: null }), "lab_chat_finish", {}), "stale"));
+for (const name of ["lab_ai_finish", "lab_chat_finish"]) {
+  test(`${name}: a lost acknowledgement never persists the error fallback`, async () => {
+    const calls = [];
+    const success = { p_note: "accepted generated answer", p_mode: "live" };
+    const result = await completeLegacyJob({ name, generate: async () => success,
+      fallback: { p_mode: "error" }, rpc: async (method, args) => {
+        calls.push({ method, args }); throw Error("acknowledgement lost after commit");
+      } });
+    assert.deepEqual(result, { generated: true, outcome: "unconfirmed" });
+    assert.deepEqual(calls, [{ method: name, args: success }]);
+  });
+}
+test("a stale completion is never reported as applied", async () => {
+  const result = await completeLegacyJob({ name: "lab_ai_finish", generate: async () => ({ p_mode: "live" }),
+    fallback: { p_mode: "error" }, rpc: async () => ({ data: false, error: null }) });
+  assert.deepEqual(result, { generated: true, outcome: "stale" });
+});
+test("invalid analysis persists the direct-review fallback once", async () => {
+  const calls = [], fallback = { p_mode: "error", p_hypothesis: "hold" };
+  const result = await completeLegacyJob({ name: "lab_ai_finish", fallback,
+    generate: async () => { validateEvidence({ ...proposal, evidence: "" }, reason); return { p_mode: "live" }; },
+    rpc: async (name, args) => { calls.push(args); return { data: true, error: null }; } });
+  assert.deepEqual(result, { generated: false, outcome: "applied" });
+  assert.deepEqual(calls, [fallback]);
+});
 const source = { id: "material-1", title: "과학 자료", section: "4절", content: "서론 ".repeat(1800) + "달걀은 밀도가 큰 소금물에서 뜬다." };
 test("retrieval can find evidence well beyond character 3000", () => {
   const chunks = retrieveChunks("달걀 소금물", [source]); assert.ok(chunks.length); assert.ok(chunks[0].start > 3000); assert.ok(chunks[0].content.includes("달걀"));

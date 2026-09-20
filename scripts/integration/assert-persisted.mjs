@@ -8,6 +8,9 @@ const rows=JSON.parse(sql(`select coalesce(jsonb_agg(jsonb_build_object(
  'pack_id',a.pack_id,'stage',a.stage,'input_version',j.input_version,
  'job_status',j.status,'attempts',j.attempts,
  'model',a.analysis->>'model','rule_verdict',a.analysis->>'ruleVerdict',
+ 'resource_transport',a.analysis#>>'{resourceLookup,transport}','resource_status',a.analysis#>>'{resourceLookup,status}',
+ 'resource_candidates',jsonb_array_length(a.analysis#>'{resourceLookup,candidates}'),
+ 'shared_resources',(select count(*) from private.learning_resource_shares s where s.attempt_id=a.id and s.revoked_at is null),
  'evidence_present',length(coalesce(a.analysis->>'quote',''))>0,
  'analysis_events',(select count(*) from private.learning_events e where e.attempt_id=a.id and action='analysis_completed')
 ) order by a.pack_id),'[]'::jsonb)
@@ -16,6 +19,7 @@ await writeFile('.test-results/persisted-worker-evidence.json',JSON.stringify(ro
 assert.equal(rows.length,2,'Both browser journeys must create one persisted attempt/job');
 assert.deepEqual(rows.map(r=>r.pack_id),['math-fractions','science-density']);
 for(const row of rows){
+ assert.equal(row.resource_transport,'mcp');assert.equal(row.resource_status,'ok');assert.ok(row.resource_candidates>=1);assert.equal(row.shared_resources,1);
  assert.equal(row.stage,'completed');assert.equal(row.job_status,'succeeded');
  assert.equal(row.model,'ci-fixture');assert.equal(row.rule_verdict,'correct');
  assert.equal(row.evidence_present,true);assert.equal(row.analysis_events,1);

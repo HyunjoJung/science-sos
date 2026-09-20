@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap");
 :root {
   --ink: #263530;
   --muted: #819087;
@@ -15,7 +14,7 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   font-size: 14px;
   line-height: 1.65;
 }

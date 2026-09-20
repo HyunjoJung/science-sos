@@ -1,10 +1,11 @@
 import { createAnalyzer, modelConfig, workOnce } from '../src/lib/learning/agent.mjs';
 import { createServiceRpc } from './learning-service.mjs';
 import { createServer } from 'node:http';
+import { createResourceLookup, withLearningResources } from '../src/lib/mcp/client.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const rpc=createServiceRpc(process.env);
-const analyze=createAnalyzer(modelConfig(process.env));
+const analyze=withLearningResources(createAnalyzer(modelConfig(process.env)),createResourceLookup(process.env));
 const stop=new AbortController();
 let healthyAt=0, failureCount=0;
 const port=Number(process.env.WORKER_PORT || 8080);

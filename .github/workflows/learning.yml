@@ -20,11 +20,13 @@ jobs:
           POSTGRES_DB: learning_test
         ports: ['5432:5432']
         options: >-
-          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
     env:
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/learning_test
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -45,3 +47,15 @@ jobs:
             .test-results/
             learning-student.png
             learning-teacher.png
+  worker-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build worker with locked production MCP client dependencies
+        run: docker build -f deploy/Dockerfile.learning-worker -t learning-worker:ci .
+      - name: Check non-root worker imports without live credentials or model calls
+        run: |
+          docker run --rm --entrypoint node learning-worker:ci -e "if(process.getuid()===0)throw Error('root_worker');Promise.all([import('./src/lib/mcp/client.mjs'),import('./src/lib/learning/agent.mjs')]).then(()=>console.log('PASS worker imports')).catch(e=>{console.error(e);process.exitCode=1})"

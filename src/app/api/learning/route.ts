@@ -3,7 +3,7 @@ import { db, configured } from '@/lib/supabase';
 import { z } from 'zod';
 import { AppError, publicFailure, readJson, requireOrigin, rpcError } from '@/lib/runtime/http.mjs';
 
-const command=z.object({action:z.enum(['activate_pack','submit','request_clarification','resubmit','assign_activity','confirm_understanding','complete_activity','submit_transfer','complete']),
+const command=z.object({action:z.enum(['activate_pack','submit','request_clarification','resubmit','assign_activity','confirm_understanding','complete_activity','submit_transfer','complete','share_resource','revoke_resource']),
  id:z.uuid(),version:z.number().int().positive().nullable(),request:z.uuid(),data:z.record(z.string(),z.unknown())});
 const reply=(data:unknown,id:string,status=200,headers:Record<string,string>={})=>Response.json(data,{status,headers:{'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','X-Request-Id':id,...headers}});
 function fail(error:unknown,id:string){
@@ -41,7 +41,7 @@ export async function POST(req:NextRequest){
   requireOrigin(req,req.nextUrl.origin,process.env.APP_ORIGIN);
   const s=await session();const v=command.parse(await readJson(req,{maxBytes:32*1024}));
   // Session RPC is authoritative for every action, including direct RPC callers and replayed requests.
-  const {data,error}=await s.rpc('learning_act',{p_action:v.action,p_id:v.id,p_version:v.version,p_data:v.data,p_request:v.request});
+  const {data,error}=await s.rpc(['share_resource','revoke_resource'].includes(v.action)?'learning_resource_act':'learning_act',{p_action:v.action,p_id:v.id,p_version:v.version,p_data:v.data,p_request:v.request});
   if(error)throw rpcError(error);
   if(typeof data!=='string')throw new AppError('database_unavailable',503,'저장 결과를 확인하지 못했어요.');
   return reply({id:data},id);
