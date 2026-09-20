@@ -9,6 +9,9 @@ node --input-type=module -e '
  assert.ok(["localhost","127.0.0.1"].includes(u.hostname));
  assert.equal(u.pathname,"/learning_test");assert.equal(u.search,"");
 '
+# Live Gateway credentials must never enter the fixture process or CI artifacts.
+unset AI_GATEWAY_API_KEY VERCEL_OIDC_TOKEN LEARNING_GATEWAY_PRIVACY LEARNING_GATEWAY_PROVIDERS
+export LEARNING_MODEL_PROVIDER=compatible
 export NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:55321
 export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_only
 export SUPABASE_SECRET_KEY=sb_secret_ci_only
@@ -26,7 +29,8 @@ pnpm test:demo
 pnpm build
 psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/integration/bootstrap.sql
 for migration in supabase/migrations/*.sql; do psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"; done
-node --test scripts/integration/learning-db.test.mjs | tee .test-results/database.tap
+# Both suites reset the same disposable DB; keep test files serial.
+node --test --test-concurrency=1 scripts/integration/*-db.test.mjs | tee .test-results/database.tap
 NODE_ENV=test node scripts/integration/auth-rpc-bridge.mjs >.test-results/bridge.log 2>&1 & bridge=$!
 node scripts/learning-worker.mjs >.test-results/worker.log 2>&1 & worker=$!
 pnpm start >.test-results/next.log 2>&1 & web=$!

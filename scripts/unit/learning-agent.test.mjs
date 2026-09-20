@@ -9,7 +9,7 @@ const envelope=v=>Response.json({choices:[{finish_reason:'stop',message:{content
 test('model endpoint is explicit and no credentials can be embedded in URL',()=>{
  assert.throws(()=>modelConfig({}));assert.throws(()=>modelConfig({LEARNING_MODEL_ENDPOINT:'https://user:pass@host',LEARNING_MODEL:'x',LEARNING_MODEL_API_KEY:'x'}));
  assert.throws(()=>modelConfig({LEARNING_MODEL_ENDPOINT:'http://host',LEARNING_MODEL:'x',LEARNING_MODEL_API_KEY:'x'}));
- assert.equal(modelConfig({LEARNING_MODEL_ENDPOINT:'http://localhost:4000/v1/chat/completions',LEARNING_MODEL:'x',LEARNING_MODEL_API_KEY:'x',LEARNING_ALLOW_LOCAL_MODEL:'true'}).model,'x');
+ assert.equal(modelConfig({LEARNING_MODEL_PROVIDER:'compatible',LEARNING_MODEL_ENDPOINT:'http://localhost:4000/v1/chat/completions',LEARNING_MODEL:'x',LEARNING_MODEL_API_KEY:'x',LEARNING_ALLOW_LOCAL_MODEL:'true'}).model,'x');
 });
 test('prompt embeds response as data and does not expose transfer answers',()=>{const m=analysisPrompt(job);assert.equal(m[1].role,'user');assert.equal(JSON.parse(m[1].content).response.reason,job.response.reason);assert.ok(!m[1].content.includes('correctAnswer'));});
 for(const pack of packs)test(`catalog ${pack.id}: understood path uses same kernel`,()=>{const j={...job,pack,response:{...job.response,answer:pack.correctAnswer}};assert.equal(validateAnalysis(valid,j,'test').proposal.kind,'transfer_check');});
