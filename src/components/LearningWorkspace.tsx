@@ -24,7 +24,7 @@ type Act=(action:string,data:Record<string,unknown>,id:string,version?:number)=>
 export default function LearningWorkspace(){
  const [view,setView]=useState<View>(empty),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[loadError,setLoadError]=useState(''),[notice,setNotice]=useState('');
  const [selected,setSelected]=useState('');
- const courseSelectId=useId(),attemptSelectId=useId();
+ const courseSelectId=useId(),attemptSelectId=useId(),emailId=useId(),passwordId=useId();
  const client=useRef(createMutationClient({storage:()=>window.sessionStorage}));
  const latest=useRef(createLatestRequest());
  const writing=useRef(false),mounted=useRef(true),knownUser=useRef(''),course=useRef('');
@@ -91,8 +91,8 @@ export default function LearningWorkspace(){
   {loading?<p role="status">수업을 불러오고 있어요.</p>:!view.user_id?<section className="learning-card"><h2>수업에 들어가기</h2>
    <p>배정받은 기존 학생·교사 계정으로 로그인하세요.</p>
    <form onSubmit={e=>{e.preventDefault();const form=new FormData(e.currentTarget);void authenticate('login',{email:form.get('email'),password:form.get('password')});}}>
-    <label>이메일<input name="email" type="email" autoComplete="username" required disabled={busy}/></label>
-    <label>비밀번호<input name="password" type="password" autoComplete="current-password" required disabled={busy}/></label>
+    <label htmlFor={emailId}>이메일</label><input id={emailId} name="email" type="email" autoComplete="username" required disabled={busy}/>
+    <label htmlFor={passwordId}>비밀번호</label><input id={passwordId} name="password" type="password" autoComplete="current-password" required disabled={busy}/>
     <button disabled={busy}>{busy?'로그인 중…':'로그인'}</button></form></section>:<>
    <div className="learning-toolbar"><div><label htmlFor={courseSelectId}>수업</label><select id={courseSelectId} value={view.course_id} disabled={busy||refreshing} onChange={e=>{
     latest.current.cancel();course.current=e.target.value;cursor.current=null;setSelected('');setView(v=>({...empty,user_id:v.user_id,courses:v.courses,course_id:e.target.value}));void refresh();
@@ -140,7 +140,7 @@ function ActivityView({activity:a}:{activity:Activity}){
 }
 function AttemptPanel({row:r,teacher,act,busy}:{row:Attempt;teacher:boolean;act:Act;busy:boolean}){
  const [feedback,setFeedback]=useState(''),[activity,setActivity]=useState(r.activities?.[0]?.id??''),[observation,setObservation]=useState(''),[explanation,setExplanation]=useState('');
- const activitySelectId=useId();
+ const activitySelectId=useId(),feedbackId=useId(),observationId=useId(),explanationId=useId();
  const chosenActivity=r.activities?.some(a=>a.id===activity)?activity:r.activities?.[0]?.id??'';
  const run=(action:string,data:Record<string,unknown>)=>act(action,data,r.id,r.version);
  const pending=r.job&&['queued','running','retry_wait'].includes(r.job.status);
@@ -149,7 +149,7 @@ function AttemptPanel({row:r,teacher,act,busy}:{row:Attempt;teacher:boolean;act:
   {teacher&&r.analysis&&<section className="learning-activity"><h4>AI 제안 · {interpretations[r.analysis.interpretation]}</h4><p>{r.analysis.note}</p><blockquote>{r.analysis.quote||'인용할 근거 부족'}</blockquote>
    <p>다음 단계 제안: {proposalLabels[r.analysis.proposal?.kind]||'교사 확인'}</p><small>모델 {r.analysis.model} · 프롬프트 {r.analysis.promptVersion}</small></section>}
   {r.teacher_feedback&&<p><strong>선생님 피드백</strong> · {r.teacher_feedback}</p>}
-  {teacher&&r.stage==='awaiting_review'&&<section><label>검토 의견 / 학생에게 보낼 질문<textarea required disabled={busy} value={feedback} maxLength={2000} onChange={e=>setFeedback(e.target.value)}/></label>
+  {teacher&&r.stage==='awaiting_review'&&<section><label htmlFor={feedbackId}>검토 의견 / 학생에게 보낼 질문</label><textarea id={feedbackId} required disabled={busy} value={feedback} maxLength={2000} onChange={e=>setFeedback(e.target.value)}/>
    <label htmlFor={activitySelectId}>확인 활동</label><select id={activitySelectId} value={chosenActivity} disabled={busy||!r.activities?.length} onChange={e=>setActivity(e.target.value)}>{r.activities?.map(a=><option key={a.id} value={a.id}>{a.title}</option>)}</select>
    <div className="learning-toolbar"><button disabled={busy||!feedback.trim()} onClick={()=>void run('request_clarification',{feedback})}>이유 더 묻기</button>
     <button disabled={busy||!feedback.trim()||!chosenActivity} onClick={()=>void run('assign_activity',{feedback,activity_id:chosenActivity})}>활동 배정</button>
@@ -157,13 +157,13 @@ function AttemptPanel({row:r,teacher,act,busy}:{row:Attempt;teacher:boolean;act:
   {!teacher&&r.stage==='needs_clarification'&&<AnswerForm item={r} busy={busy} label="이유 보완해서 보내기" onSend={d=>run('resubmit',d)}/>}
   {r.activity&&<ActivityView activity={r.activity}/>}
   {!teacher&&r.stage==='activity_assigned'&&<form onSubmit={e=>{e.preventDefault();void run('complete_activity',{observation,explanation});}}>
-   <label>활동에서 확인한 내용<textarea required disabled={busy} maxLength={2000} value={observation} onChange={e=>setObservation(e.target.value)}/></label>
-   <label>다시 설명한 내 생각<textarea required disabled={busy} maxLength={2000} value={explanation} onChange={e=>setExplanation(e.target.value)}/></label>
+   <label htmlFor={observationId}>활동에서 확인한 내용</label><textarea id={observationId} required disabled={busy} maxLength={2000} value={observation} onChange={e=>setObservation(e.target.value)}/>
+   <label htmlFor={explanationId}>다시 설명한 내 생각</label><textarea id={explanationId} required disabled={busy} maxLength={2000} value={explanation} onChange={e=>setExplanation(e.target.value)}/>
    <button disabled={busy||!observation.trim()||!explanation.trim()}>활동 기록 저장</button></form>}
   {r.activity_response&&<p>관찰: {r.activity_response.observation}<br/>바뀐 설명: {r.activity_response.explanation}</p>}
   {!teacher&&r.stage==='awaiting_transfer'&&r.transfer&&<AnswerForm item={r.transfer} busy={busy} label="새 문항 답안 보내기" onSend={d=>run('submit_transfer',d)}/>}
   {r.transfer_response&&<section><h4>새 문항에서의 설명</h4><p>{r.transfer?.prompt}</p><blockquote>{r.transfer_response.answer}<br/>{r.transfer_response.reason}</blockquote></section>}
-  {teacher&&r.stage==='awaiting_final_review'&&<form onSubmit={e=>{e.preventDefault();void run('complete',{feedback});}}><label>재확인 의견<textarea required disabled={busy} value={feedback} maxLength={2000} onChange={e=>setFeedback(e.target.value)}/></label><button disabled={busy||!feedback.trim()}>검토 완료</button></form>}
+  {teacher&&r.stage==='awaiting_final_review'&&<form onSubmit={e=>{e.preventDefault();void run('complete',{feedback});}}><label htmlFor={feedbackId}>재확인 의견</label><textarea id={feedbackId} required disabled={busy} value={feedback} maxLength={2000} onChange={e=>setFeedback(e.target.value)}/><button disabled={busy||!feedback.trim()}>검토 완료</button></form>}
   <LearningResources row={r} teacher={teacher} act={act} busy={busy}/>
   {r.final_feedback&&<p><strong>교사 최종 확인</strong> · {r.final_feedback}</p>}
  </article>;
