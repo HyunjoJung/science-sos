@@ -1,0 +1,35 @@
+name: Prepare MCP workspace
+on:
+  push:
+    branches: [feature/learning-mcp-resources]
+    paths: [.github/workflows/mcp-prepare.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --global pnpm@10.33.2
+      - name: Resolve exact SDK versions (no account credentials)
+        run: |
+          pnpm add --save-exact mcp-handler@2.2.0 @modelcontextprotocol/server@2.0.0
+          pnpm add --save-exact --save-dev @modelcontextprotocol/client@2.0.0
+      - name: Capture source and installed API documentation
+        run: |
+          mkdir -p /tmp/mcp-workspace/docs
+          git rev-parse HEAD > /tmp/mcp-workspace/base-sha.txt
+          tar --exclude=.git --exclude=node_modules --exclude=.next --exclude=.test-results -czf /tmp/mcp-workspace/source.tar.gz .
+          cp -R node_modules/next/dist/docs /tmp/mcp-workspace/docs/next
+          tar -czf /tmp/mcp-workspace/sdk-modules.tar.gz node_modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcp-workspace
+          path: /tmp/mcp-workspace/
+          retention-days: 3
